@@ -6,7 +6,6 @@ from distant import Example, get_relation
 from nltk import Tree, ParentedTree
 
 def process_tree(tree_str, label):
-   # print(tree_str)
     example = None
     try:
         #print("getting tree")
