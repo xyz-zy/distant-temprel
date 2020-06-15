@@ -9,12 +9,19 @@ At run-time: load examples from `EXAMPLE_DIR`.
 
 ## Files
 
-`filter_xml.py --xml_path 'XML_DIR/*.xml' --out_dir TREE_DIR/`
+`filter_gz.py --files 'PATH/TO/gigaword_eng_5/data/SOURCE/*.gz', --out_dir FILTERED_DIR/'`
+
+    Filters gigaword .gz files to sentences containing before/after mentions
+
+ * `--files`: Will be glob'd, every encountered file will be assumed to be a .gz file, which contains HTML when unzipped, where each sentence is a `<p>` element.
+ * `--out_dir`: Target directory for resulting `.txt` files containing filtered sentences. Will be created if nonexistent.
+
+`filter_xml.py --files 'PATH/TO/*.xml' --out_dir TREE_DIR/`
 
     Filters parse trees in XML to ones containing before/after mentions.
 
- * `--xml_path`: Will be glob'd, every encountered file will be assumed to contain the `.xml` output of a CAEVO parse, with  each sentence represented by an `entry` element, where the text is stored as `entry.sentence.text` and the parse tree is stored as `entry.parse.text`.
- * `--out_dir`: Target directory for resulting `.txt` files containing filtered parse trees. Will be created if nonexistent.
+ * `--files`: Will be glob'd, every encountered file will be assumed to contain the `.xml` output of a CAEVO parse, with  each sentence represented by an `entry` element, where the text is stored as `entry.sentence.text` and the parse tree is stored as `entry.parse.text`.
+ * `--out_dir`: Target directory for resulting `.tree` files containing filtered parse trees. Will be created if nonexistent.
  
 
 `process_tree.py --tree_path 'TREE_DIR/*' --out_dir EXAMPLE_DIR/`
