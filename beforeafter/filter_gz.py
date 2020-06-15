@@ -51,6 +51,10 @@ if __name__ == '__main__':
     parser.add_argument('--out_dir', help='output_dir for filtered files')
     args = parser.parse_args()
 
+    if not args.files or not args.out_dir:
+        print("Please provide arguments.")
+        exit()
+
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir)
     

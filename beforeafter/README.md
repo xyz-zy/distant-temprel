@@ -16,7 +16,7 @@ At run-time: load examples from `EXAMPLE_DIR`.
  * `--files`: Will be glob'd, every encountered file will be assumed to be a .gz file, which contains HTML when unzipped, where each sentence is a `<p>` element.
  * `--out_dir`: Target directory for resulting `.txt` files containing filtered sentences. Will be created if nonexistent.
 
-`./parse_tree.sh /ABS/PATH/TO/STANFORD_NLP/ /ABS/PATH/TO/FILTERED_DIR/ /ABS/PATH/TO/TREE_DIR/`
+`./parse_tree.sh /ABS/PATH/TO/STANFORD_NLP/ /ABS/PATH/TO/FILTERED_DIR/* /ABS/PATH/TO/TREE_DIR/`
 
     Generate .tree files from txt files in FILTERED_DIR using Stanford CoreNLP and outputs to TREE_DIR/
 
