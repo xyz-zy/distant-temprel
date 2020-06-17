@@ -1,10 +1,24 @@
 # BeforeAfter Example Parser
 
-1. Generate syntactic parse tree and output to `TREE_DIR/<filename>_<rel>.tree/txt`.
+1. Generate syntactic parse tree and output to `TREE_DIR/<filename>_<rel>.tree/txt`. Two methods:
+  
+    1. Directly from Gigaword. 
+    
+        1. Generate candidate sentences: 
+        
+            `python filter_gz.py --files 'PATH/TO/gigaword_eng_5/data/SOURCE/*.gz', --out_dir FILTERED_DIR/`
+        
+        2. Generate syntactic parse tree using Stanford CoreNLP:
+        
+            `./parse_tree.sh /ABS/PATH/TO/STANFORD_NLP/ /ABS/PATH/TO/FILTERED_DIR/* /ABS/PATH/TO/TREE_DIR/`
+
+    2. Extract from CAEVO parse.
+
+        `python filter_xml.py --files 'PATH/TO/*.xml' --out_dir TREE_DIR/`
 
 2. Process parse tree and extract event-event relation. Output to `EXAMPLE_DIR/<filename>_<rel>.json`.
 
-At run-time: load examples from `EXAMPLE_DIR`.
+    `python process_tree.py --tree_path 'TREE_DIR/*' --out_dir EXAMPLE_DIR/`
 
 
 ## Files
