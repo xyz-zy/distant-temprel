@@ -72,7 +72,7 @@ def matres_dev_examples(tokenizer, lm='roberta', mask_events=False, mask_context
 
 def matres_test_examples(tokenizer, lm='roberta', mask_events=False, mask_context=False):
     loader = MatresLoader()
-    examples = loader.read_test_examples(doc_dir="timebank/TBAQ-cleaned/", rel_dir="timebank/MATRES/")
+    examples = loader.read_test_examples(doc_dir="timebank/te3-platinum/", rel_dir="timebank/MATRES/")
  
     features = convert_examples_to_features(
         examples=examples,
