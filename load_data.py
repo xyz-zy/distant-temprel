@@ -18,18 +18,18 @@ from timebank.examples import MatresLoader
 sys.path.insert(1, 'Temporal-event-ordering/event_model')
 
 
-def get_train_data(data, tokenizer, lm, num_examples=None, num_examples_nd=None, mask=True, distant_source=None):
+def get_train_data(data, tokenizer, lm, num_examples=None, mask=True, distant_source=None):
     if data == "beforeafter":
-        print("Using BeforeAfter examples from Gigaword.")
+        print("Using BeforeAfter train examples from Gigaword.")
         exs, data = beforeafter_examples(tokenizer, lm=lm, num_examples=num_examples, mask=mask, during=False)
     elif data == "beforeafter_yelp":
-        print("Using BeforeAfter examples from Yelp.")
+        print("Using BeforeAfter train examples from Yelp.")
         exs, data = beforeafter_examples(tokenizer, lm=lm, ext="_yelp", num_examples=num_examples, mask=mask)
     elif data == "matres":
-        print("Using MATRES training examples.")
+        print("Using MATRES train examples.")
         exs, data = matres_train_examples(tokenizer, lm=lm)
-        if num_examples_nd:
-            exs = random.sample(exs, num_examples_nd)
+        if num_examples:
+            exs = random.sample(exs, num_examples)
             data = convert_examples_to_features(exs,
                                         tokenizer=tokenizer,
                                         max_seq_length=MAX_SEQ_LENGTH,
@@ -38,13 +38,13 @@ def get_train_data(data, tokenizer, lm, num_examples=None, num_examples_nd=None,
                                         #mask_context=args.mask_context)
             data = make_tensor_dataset(data, model=args.lm)
     elif data == "distant":
-        print("Using DistantTimex training examples.")
+        print("Using DistantTimex train examples.")
         examples, data = distant_train_examples(tokenizer, lm=lm, source=distnat_source, mask=mask, num_examples=num_examples)
-    elif 'udst' in args.data:
-        print("Using UDS-T training examples.")
+    elif data == "udst":
+        print("Using UDS-T train examples.")
         exs, data = udst(tokenizer, lm=lm, split="train")
-        if num_examples_nd:
-            exs = random.sample(exs, num_examples_nd)
+        if num_examples:
+            exs = random.sample(exs, num_examples)
             data = convert_examples_to_features(exs,
                                         tokenizer=tokenizer,
                                         max_seq_length=MAX_SEQ_LENGTH,

@@ -15,8 +15,7 @@ parser.add_argument('--data', nargs='+', help='beforeafter,beforeafter_nd,before
 parser.add_argument('--output_dir', help='path to model output directory')
 parser.add_argument('--model_dir', help='directory for pretrained model')
 parser.add_argument('--distant_source', help='{afp,apw,nyt,cna,wpb}')
-parser.add_argument('--num_examples', type=int, help='only supported for beforeafter and distant')
-parser.add_argument('--num_examples_nd', type=int, help='number of non-distant examples')
+parser.add_argument('--num_examples', nargs='+', type=int, help='only supported for beforeafter and distant')
 parser.add_argument('--mask', action='store_true')
 parser.add_argument('--lm', help='bert,roberta,electra')
 parser.add_argument('--mask_events', action='store_true')
@@ -54,7 +53,7 @@ from timebank.examples import ExampleLoader, MatresLoader
 from load_data import *
 
 from modeling import BertForMatres, RobertaForMatres, ElectraForMatres
-from modeling import make_tensor_dataset, get_tensors
+from modeling import load_model_and_tokenizer, make_tensor_dataset, get_tensors
 
 from uda.prune import Pruner
 from uda.ne import NEReplacer
@@ -63,48 +62,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 n_gpu = torch.cuda.device_count()
 print(device, n_gpu)
 
-if args.model_dir:
-  if args.lm == 'roberta':
-    model = RobertaForMatres.from_pretrained(args.model_dir)
-    tokenizer = RobertaTokenizer.from_pretrained(args.model_dir)
-  elif args.lm == 'bert':
-    model = BertForMatres.from_pretrained(args.model_dir)
-    tokenizer = BertTokenizer.from_pretrained(args.model_dir, do_lower_case=DO_LOWER_CASE)
-  elif args.lm == 'electra':
-    model = ElectraForMatres.from_pretrained(args.model_dir)
-    tokenizer = ElectraTokenizer.from_pretrained(args.model_dir)
-  else:
-    print("Please specifify valid model from {'bert', 'roberta', 'electra'}", file=sys.stderr)
-    exit()
-else:
-  if args.lm =='roberta':
-    model = RobertaForMatres.from_pretrained('roberta-base')
-    tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-  elif args.lm == 'bert':
-    model = BertForMatres.from_pretrained('bert-base-uncased',
-                                          cache_dir=os.path.join(str(file_utils.PYTORCH_PRETRAINED_BERT_CACHE),
-                                                               'distributed_{}'.format(-1)))
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
-  elif args.lm == 'bert-large':
-    model = BertForMatres.from_pretrained('bert-large-uncased')
-    tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
-    args.lm = 'bert'
-  elif args.lm == 'electra':
-    model = ElectraForMatres.from_pretrained('google/electra-base-discriminator')
-    tokenizer = ElectraTokenizer.from_pretrained('google/electra-base-discriminator')
-  elif args.lm == 'electra-large':
-    model = ElectraForMatres.from_pretrained('google/electra-large-discriminator')
-    tokenizer = ElectraTokenizer.from_pretrained('google/electra-large-discriminator')
-    args.lm = 'electra'
-  else:
-    print("Please specifify valid model from {'bert', 'bert-large', 'roberta', 'electra', 'electra-large'}", file=sys.stderr)
-    exit()
+model, tokenizer = load_model_and_tokenizer(lm=args.lm, model_dir=args.model_dir)
 
 all_exs = []
 all_data = []
 
-for ds in args.data:
-   exs, data = get_train_data(ds, tokenizer, lm=args.lm, num_examples=args.num_examples, num_examples_nd=args.num_examples_nd, mask=args.mask, distant_source=args.distant_source)
+if not args.num_examples:
+    args.num_examples = [None] * len(args.data)
+else:
+    args.num_examples += [None] * len(args.data) - len(args.num_examples)
+print(args.data, args.num_examples)
+
+for data_source, num_exs in zip(args.data, args.num_examples):
+   exs, data = get_train_data(data_source, tokenizer, lm=args.lm, num_examples=num_exs, mask=args.mask, distant_source=args.distant_source)
    all_exs.append(exs)
    all_data.append(data)
 

@@ -224,4 +224,29 @@ def get_tensors(features, model='roberta'):
     else:
       return tuple([all_input_ids, all_attention_masks, all_token_type_ids, all_label_ids, all_e1_pos, all_e2_pos])
 
-    
+
+def load_model_and_tokenizer(lm, model_dir=None):
+    if lm == 'roberta':
+       model_path = model_dir if model_dir else 'roberta-base'
+       model = RobertaForMatres.from_pretrained(model_path)
+       tokenizer = RobertaTokenizer.from_pretrained(model_path)
+    elif lm == 'bert':
+       model_path = model_dir if model_dir else 'bert-base-uncased'
+       model = BertForMatres.from_pretrained(model_path)
+       tokenizer = BertTokenizer.from_pretrained(model_path)
+    elif lm == 'bert-large':
+       model_path = model_dir if model_dir else 'bert-large-uncased'
+       model = BertForMatres.from_pretrained(model_path)
+       tokenizer = BertTokenizer.from_pretrained(model_path)
+    elif lm == 'electra':
+       model_path = model_dir if model_dir else 'google/electra-base-discriminator'
+       model = ElectraForMatres.from_pretrained(model_path)
+       tokenizer = ElectraTokenizer.from_pretrained(model_path)
+    elif lm == 'electra-large':
+       model_path = model_dir if model_dir else 'google/electra-large-discriminator'
+       model = ElectraForMatres.from_pretrained(model_path)
+       tokenizer = ElectraTokenizer.from_pretrained(model_path)
+    else:
+       raise RuntimeError("Please specify valid model from {bert, bert-large, roberta, electra, electra-large}.")
+    return model, tokenizer
+ 

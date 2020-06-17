@@ -16,7 +16,7 @@ from transformers import *
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
 # Import TRC model from repository
-from modeling import make_tensor_dataset
+from modeling import load_model_and_tokenizer, make_tensor_dataset
 from modeling import BertForMatres, RobertaForMatres, ElectraForMatres
 
 from constants import *
@@ -39,7 +39,6 @@ parser.add_argument('--output_results', action='store_true',
 parser.add_argument('--save_emb', action='store_true')
 parser.add_argument('--mask_events', action='store_true')
 parser.add_argument('--mask_context', action='store_true')
-parser.add_argument('--pkl', help='path to pickle file with examples')
 parser.add_argument('--ens_out_dir', help='directory for output ensemble fiels')
 args = parser.parse_args()
 print(args)
@@ -55,13 +54,11 @@ if not args.model_dir:
 
 
 def get_data(tokenizer, data_source):
-    if data_source == 'gigaword':
+    if data_source.endswith("_train") or data_source.endswith(".pkl"):
+       examples, data = get_train_data(data_source[:len("_train")], tokenizer, lm=args.lm, num_examples=args.num_examples, mask=args.mask)
+    elif data_source == 'gigaword':
         print("using beforeafter gigaword examples")
         examples, data = gigaword_examples(tokenizer, lm=args.lm)
-    elif data_source == 'matres_train':
-        print("using matres training examples")
-        examples, data = matres_train_examples(
-            tokenizer, lm=args.lm, mask_events=args.mask_events, mask_context=args.mask_context)
     elif data_source == 'matres_dev':
         print("using matres dev examples")
         examples, data = matres_dev_examples(
@@ -70,29 +67,10 @@ def get_data(tokenizer, data_source):
         print("using matres test examples")
         examples, data = matres_test_examples(
             tokenizer, lm=args.lm, mask_events=args.mask_events, mask_context=args.mask_context)
-    elif data_source == 'distant_train':
-        print("using distant training examples")
-        examples, data = distant_train_examples(
-            tokenizer, lm=args.lm, train=False, mask=args.mask, mask_events=args.mask_events)
-        if args.num_examples and int(args.num_examples) > len(examples):
-            more_exs, more_data = distant_parsed_examples(tokenizer, lm=args.lm, train=False, num_examples=int(
-                args.num_examples)-len(examples), mask_events=args.mask_events)
-            examples.extend(more_exs)
-            data = convert_distant_examples_to_features(examples=examples,
-                                                        tokenizer=tokenizer,
-                                                        max_seq_length=MAX_SEQ_LENGTH,
-                                                        doc_stride=DOC_STRIDE,
-                                                        mask=args.mask,
-                                                        mask_events=args.mask_events)
-            data = make_tensor_dataset(data, model=args.lm)
     elif data_source == 'distant_dev':
         print("using distant test examples")
         examples, data = distant_test_examples(
             tokenizer, lm=args.lm, mask=args.mask, mask_events=args.mask_events)
-    elif data_source == 'udst_train':
-        print("using UDS-T train examples")
-        examples, data = udst(tokenizer, lm=args.lm, split="train",
-                              mask_events=args.mask_events)
     elif data_source == 'udst_dev':
         print("using UDS-T dev examples")
         examples, data = udst(tokenizer, lm=args.lm, split="dev",
@@ -131,18 +109,6 @@ def get_data(tokenizer, data_source):
         examples, data = udst_majority(
             tokenizer, lm=args.lm, split="test", example_dir="udst/DecompTime/maj_conf_nt/", mask_events=args.mask_events)
         count_labels(examples)
-    elif data_source == 'pkl':
-        assert args.pkl is not None
-        examples = pickle.load(open(args.pkl, "rb"))
-        print(len(examples))
-        data = convert_distant_examples_to_features(examples=examples,
-                                                    tokenizer=tokenizer,
-                                                    max_seq_length=MAX_SEQ_LENGTH,
-                                                    doc_stride=DOC_STRIDE,
-                                                    mask=args.mask,
-                                                    mask_events=args.mask_events)
-        data = make_tensor_dataset(data, model=args.lm)
-        count_labels(examples)
     else:
         print("please specify valid dataset")
         exit()
@@ -151,18 +117,8 @@ def get_data(tokenizer, data_source):
 
 def eval(model_dir, epoch_num, data_source):
     print(model_dir, epoch_num, file=logfile)
-    if args.lm == 'roberta':
-        model = RobertaForMatres.from_pretrained(model_dir)
-        tokenizer = RobertaTokenizer.from_pretrained(model_dir)
-    elif args.lm == 'bert':
-        model = BertForMatres.from_pretrained(model_dir)
-        tokenizer = BertTokenizer.from_pretrained(model_dir)
-    elif args.lm.startswith('electra'):
-        model = ElectraForMatres.from_pretrained(model_dir)
-        tokenizer = ElectraTokenizer.from_pretrained(model_dir)
-    else:
-        print("Please specifiy valid pretrained model", file=sys.stderr)
-        exit()
+
+    model, tokenizer = load_model_and_tokenizer(args.lm, model_dir=model_dir)
 
     examples, data = get_data(tokenizer, data_source)
     data_sampler = SequentialSampler(data)
