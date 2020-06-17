@@ -19,7 +19,6 @@ parser.add_argument('--num_examples', type=int, help='only supported for beforea
 parser.add_argument('--num_examples_nd', type=int, help='number of non-distant examples')
 parser.add_argument('--mask', action='store_true')
 parser.add_argument('--lm', help='bert,roberta,electra')
-parser.add_argument('--random_mask', type=float)
 parser.add_argument('--mask_events', action='store_true')
 parser.add_argument('--serialize', action='store_true')
 parser.add_argument('--epochs', type=int)
@@ -104,104 +103,25 @@ else:
 all_exs = []
 all_data = []
 
-if 'beforeafter' in args.data:
-  print("using beforeafter examples")
-  exs, data = beforeafter_examples(tokenizer, lm=args.lm, num_examples=args.num_examples, mask=args.mask)
-  all_exs.append(exs)
-  all_data.append(data)
-if 'beforeafter_nd' in args.data:
-  print("using beforeafter examples, no during")
-  exs, data = beforeafter_examples(tokenizer, lm=args.lm, num_examples=args.num_examples, mask=args.mask, during=False)
-  all_exs.append(exs)
-  all_data.append(data)
-if 'beforeafter_yelp' in args.data:
-  print("using beforeafter yelp examples")
-  exs, data = beforeafter_examples(tokenizer, lm=args.lm, ext="_yelp",  num_examples=args.num_examples, mask=args.mask)
-  all_exs.append(exs)
-  all_data.append(data)
-if 'matres' in args.data:
-  print("using matres training examples")
-  exs, data = matres_train_examples(tokenizer, lm=args.lm, train=True, mask_events=args.mask_events, mask_context=args.mask_context)
-  if args.num_examples_nd:
-    exs = random.sample(exs, args.num_examples_nd)
-    data = convert_examples_to_features(exs,
-                                        tokenizer=tokenizer,
-                                        max_seq_length=MAX_SEQ_LENGTH,
-                                        doc_stride=DOC_STRIDE,
-                                        mask_events=args.mask_events,
-                                        mask_context=args.mask_context)
-    data = make_tensor_dataset(data, model=args.lm)
-  all_exs.append(exs)
-  all_data.append(data)
-if 'distant' in args.data:
-  print("using distant training examples")
-  examples, data = distant_train_examples(tokenizer, lm=args.lm, source=args.distant_source, mask=args.mask, mask_events=args.mask_events, num_examples=args.num_examples)
-  print(len(examples), "distant examples")
-  all_exs.append(examples)
-  all_data.append(data)
-if 'distant_dct' in args.data:
-  print("using distant DCT training examples")
-  examples, data = distant_train_examples(tokenizer, lm=args.lm, ext="_dct", mask=args.mask, mask_events=args.mask_events, num_examples=args.num_examples)
-  print(len(examples), "distant dct examples")
-  all_exs.append(examples)
-  all_data.append(data)
-if 'distant_yelp' in args.data:
-  print("using distant yelp training examples")
-  examples, data = distant_train_examples(tokenizer, lm=args.lm, ext="_yelp", mask=args.mask, mask_events=args.mask_events, num_examples=args.num_examples)
-  print(len(examples), "distant yelp examples")
-  all_exs.append(examples)
-  all_data.append(data)
-if 'distant_yelp_parsed' in args.data:
-  print("using distant yelp training examples, parsed only")
-  examples, data = distant_parsed_examples(tokenizer, lm=args.lm, ext="_yelp", mask=args.mask, mask_events=args.mask_events, num_examples=args.num_examples)
-  print(len(examples), "distant yelp examples, parsed only")
-  all_exs.append(examples)
-  all_data.append(data)
-if 'udst' in args.data:
-  print("using UDS-T training examples")
-  exs, data = udst(tokenizer, lm=args.lm, split="train", mask_events=args.mask_events, mask_context=args.mask_context)
-  if args.num_examples_nd:
-    exs = random.sample(exs, args.num_examples_nd)
-    data = convert_examples_to_features(exs,
-                                        tokenizer=tokenizer,
-                                        max_seq_length=MAX_SEQ_LENGTH,
-                                        doc_stride=DOC_STRIDE,
-                                        mask_events=args.mask_events,
-                                        mask_context=args.mask_context)
-    data = make_tensor_dataset(data, model=args.lm)
-  all_exs.append(exs)
-  all_data.append(data)
-for data_source in args.data:
-  if data_source.endswith('.pkl'):
-    inputs = pickle.load(open(data_source, 'rb'))
-    all_exs.append(inputs["exs"])
-    all_data.append(inputs["data"])
+for ds in args.data:
+   exs, data = get_train_data(ds, tokenizer, lm=args.lm, num_examples=args.num_examples, num_examples_nd=args.num_examples_nd, mask=args.mask, distant_source=args.distant_source)
+   all_exs.append(exs)
+   all_data.append(data)
 
+'''
 if args.unsup:
-  pruner = Pruner()
-  if args.unsup == 'matres':
-    print("using matres training examples")
-    u_exs, u_data = matres_train_examples(tokenizer, lm=args.lm, train=True, mask_events=args.mask_events, mask_context=args.mask_context)
-  elif args.unsup == 'udst':
-    u_exs, u_data = udst(tokenizer, lm=args.lm, split="train", mask_events=args.mask_events, mask_context=args.mask_context)
-  elif args.unsup == 'distant':
-    u_exs, u_data = distant_train_examples(tokenizer, lm=args.lm, train=True, mask=args.mask, mask_events=args.mask_events, num_examples=args.unsup_num_examples)
-  elif args.unsup.endswith('.pkl'):
+  if args.unsup.endswith(".pkl"):
     inputs = pickle.load(open(args.unsup, 'rb'))
     u_exs = inputs['exs']
     u_data = inputs['old_data']
     u_new_data = inputs['new_data']
-  #  u_new_iter = itertools.cycle(u_exs)
   else:
-    print('invalid option for args.unsup')
-    exit()
-  if args.unsup_num_examples and args.unsup != 'distant':
-    u_exs = u_exs[-args.unsup_num_examples:]
+    assert args.unsup in set(["matres", "udst"])
+    u_exs, u_data = get_train_data(args.unsup, lm=arg.lm, num_examples=args.unsup_num_examples, mask=args.mask)  
   print(len(u_exs), "unsup examples loaded")
-  #u_iter = itertools.cycle(u_exs)
-  u_idxs = list(range(len(u_exs)))
-  random.shuffle(u_idxs)
-  u_idxs_pos = 0
+  UNSUP_BATCH_SIZE = args.unsup_batch if args.unsup_batch else int(TRAIN_BATCH_SIZE/2)
+  uda_dataset = UdaDataset(u_exs, UNSUP_BATCH_SIZE)
+'''
 
 OUTPUT_DIR = args.output_dir if args.output_dir else "models/scratch/"
 if not os.path.exists(OUTPUT_DIR):
@@ -270,71 +190,13 @@ if num_epochs == 0:
 model.train()
 exs_cpy = exs
 
-
-all_preds = 0
-high_conf_preds = 0
-
-UNSUP_BATCH_SIZE = args.unsup_batch if args.unsup_batch else int(TRAIN_BATCH_SIZE/2)
-
-ne_replacer = NEReplacer()
-
-def get_new_example(old_example, method="random"):
-  if method == "random":
-    method = random.choice(["prune", "ne"])
-    if method == "prune":
-        new_example = pruner.get_pruned_example(old_example)
-        if new_example == old_example:
-            try:
-                new_example = ne_replacer.replace(old_example)
-            except:
-                new_example = old_example
-    if method == "ne":
-        try:
-            new_example = ne_replacer.replace(old_example)
-        except:
-            new_example = old_example
-        if new_example == old_example:
-            new_example = pruner.get_pruned_example(old_example)
-  elif method == "prune":
-    return pruner.get_pruned_example(old_example)
-  elif method == "ne":
-    try:
-      new_example = ne_replacer.replace(old_example)
-    except:
-      new_example = old_example
-  return new_example
-
-def get_uda_examples(idxs, method="random"):
-  #print(idxs)
-  examples = [u_exs[i] for i in idxs]
-  if method == "random_mask":
-    examples = u_exs[idxs]
-    new_examples  = apply_random_mask(examples, tokenizer, threshold=args.random_mask)
-    return examples, new_examples
-  old_examples = []
-  new_examples = []
-  #while len(old_examples) < UNSUP_BATCH_SIZE:
-  #  old_ex = next(u_iter)
-  for old_ex in examples:
-    new_ex = get_new_example(old_ex, method)
-    if new_ex != old_ex:
-      old_examples.append(old_ex)
-      new_examples.append(new_ex)
-  return old_examples, new_examples
-
+'''
 def unsup_loss(model):
   global all_preds, high_conf_preds, u_idxs_pos, u_idxs
-  stop = min(u_idxs_pos+UNSUP_BATCH_SIZE, len(u_exs))
-  idxs = u_idxs[u_idxs_pos:stop].copy()
-  if stop == len(u_exs):
-    random.shuffle(u_idxs)
-    diff = u_idxs_pos + UNSUP_BATCH_SIZE - len(u_exs)
-    idxs += u_idxs[:diff]
-    u_idxs_pos = diff
-  else:
-    u_idxs_pos += UNSUP_BATCH_SIZE
-  method = args.uda_method if args.uda_method else "random"
-  unsup_batch, trans_batch = get_uda_examples(idxs=idxs, method=method)
+  unsup_batch, trans_batch = uda_dataset.get_batch(model=model,
+                                                   tokenizer=tokenizer,
+                                                   idxs=idxs,
+                                                   method=method)
   unsup_batch = convert_examples_to_features(unsup_batch, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.unsup_mask)
   if len(unsup_batch) == 0:
     return None
@@ -364,14 +226,9 @@ def unsup_loss(model):
   if args.uda_weight:
       loss_kldiv *= args.uda_weight
   return loss_kldiv
+'''
 
 for ep in trange(num_epochs, desc="Epoch"):
-    if args.random_mask:
-      exs  = apply_random_mask(exs_cpy, tokenizer, threshold=args.random_mask)
-      data = convert_examples_to_features(exs, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.mask)
-      data = make_tensor_dataset(data, model=args.lm)
-      data_sampler = RandomSampler(data)
-      dataloader = DataLoader(data, sampler=data_sampler, batch_size=TRAIN_BATCH_SIZE)
     last_loss_kldiv = 0
     for step, batch in enumerate(tqdm(dataloader, desc="Iteration " + str(ep), disable=args.disable_tqdm)):
         bbatch = tuple(t.to(device) for t in batch) # multi-gpu does scattering it-self
@@ -386,8 +243,8 @@ for ep in trange(num_epochs, desc="Epoch"):
         loss.backward()
         if step % 100 == 0:
           print("Loss: %.3f at step %d" %(loss.item(), step), file=logfile)
-          if args.unsup and last_loss_kldiv:
-            print("Unsup Loss: %.3f at step %d" %(last_loss_kldiv, step), file=logfile)
+          #if args.unsup and last_loss_kldiv:
+          #  print("Unsup Loss: %.3f at step %d" %(last_loss_kldiv, step), file=logfile)
         optimizer.step()
         scheduler.step()
         model.zero_grad()

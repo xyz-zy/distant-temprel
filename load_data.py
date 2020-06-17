@@ -2,6 +2,7 @@ import copy
 import glob
 import json
 import pickle
+import random
 import sys
 
 from constants import *
@@ -15,6 +16,50 @@ from udst import parse_udst
 from timebank.examples import MatresLoader
 
 sys.path.insert(1, 'Temporal-event-ordering/event_model')
+
+
+def get_train_data(data, tokenizer, lm, num_examples=None, num_examples_nd=None, mask=True, distant_source=None):
+    if data == "beforeafter":
+        print("Using BeforeAfter examples from Gigaword.")
+        exs, data = beforeafter_examples(tokenizer, lm=lm, num_examples=num_examples, mask=mask, during=False)
+    elif data == "beforeafter_yelp":
+        print("Using BeforeAfter examples from Yelp.")
+        exs, data = beforeafter_examples(tokenizer, lm=lm, ext="_yelp", num_examples=num_examples, mask=mask)
+    elif data == "matres":
+        print("Using MATRES training examples.")
+        exs, data = matres_train_examples(tokenizer, lm=lm)
+        if num_examples_nd:
+            exs = random.sample(exs, num_examples_nd)
+            data = convert_examples_to_features(exs,
+                                        tokenizer=tokenizer,
+                                        max_seq_length=MAX_SEQ_LENGTH,
+                                        doc_stride=DOC_STRIDE)
+                                        #mask_events=args.mask_events,
+                                        #mask_context=args.mask_context)
+            data = make_tensor_dataset(data, model=args.lm)
+    elif data == "distant":
+        print("Using DistantTimex training examples.")
+        examples, data = distant_train_examples(tokenizer, lm=lm, source=distnat_source, mask=mask, num_examples=num_examples)
+    elif 'udst' in args.data:
+        print("Using UDS-T training examples.")
+        exs, data = udst(tokenizer, lm=lm, split="train")
+        if num_examples_nd:
+            exs = random.sample(exs, num_examples_nd)
+            data = convert_examples_to_features(exs,
+                                        tokenizer=tokenizer,
+                                        max_seq_length=MAX_SEQ_LENGTH,
+                                        doc_stride=DOC_STRIDE)
+                                        #mask_events=args.mask_events,
+                                        #mask_context=args.mask_context)
+            data = make_tensor_dataset(data, model=args.lm)
+    elif data.endswith(".pkl"):
+        inputs = pickle.load(open(data, "rb"))
+        exs = inputs["exs"]
+        data = inputs["data"]
+    else:
+        raise RuntimeError("Please specifify valid data source.")
+    return exs, data
+
 
 def get_beforeafter_examples(EXAMPLE_DIR="beforeafter_examples/", num_examples=None, ratio=False, during=False):
     example_files = glob.glob(EXAMPLE_DIR + "*.json")
@@ -92,7 +137,7 @@ def matres_examples():
     return train_examples, dev_examples
 
 
-def matres_train_examples(tokenizer, lm='roberta', train=False, mask_events=False, mask_context=False):
+def matres_train_examples(tokenizer, lm='roberta', mask_events=False, mask_context=False):
     train_examples, _ = matres_examples()
 
     train_features = convert_examples_to_features(
