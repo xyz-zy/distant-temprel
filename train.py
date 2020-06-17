@@ -25,11 +25,7 @@ parser.add_argument('--serialize', action='store_true')
 parser.add_argument('--epochs', type=int)
 parser.add_argument('--batch', type=int)
 parser.add_argument('--lr', type=float)
-parser.add_argument('--print_loss', action='store_true')
 parser.add_argument('--mask_context', action='store_true')
-parser.add_argument('--prune', action='store_true')
-parser.add_argument('--prune_rep', action='store_true')
-parser.add_argument('--prune_choice', help='random,attr')
 parser.add_argument('--unsup', help='matres')
 parser.add_argument('--unsup_conf', action='store_true')
 parser.add_argument('--unsup_batch', type=int)
@@ -54,19 +50,18 @@ from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
 from transformers import *
 from tqdm import tqdm, trange
 
-# Import data utils from repository. 
 from timebank.examples import ExampleLoader, MatresLoader
+
+from load_data import *
 
 from modeling import BertForMatres, RobertaForMatres, ElectraForMatres
 from modeling import make_tensor_dataset, get_tensors
 
-from prune import Pruner
-from interpret import Attributor
-from ne import NEReplacer
+from uda.prune import Pruner
+from uda.ne import NEReplacer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 n_gpu = torch.cuda.device_count()
-#device = torch.device('cuda:0')
 print(device, n_gpu)
 
 if args.model_dir:
@@ -103,11 +98,8 @@ else:
     tokenizer = ElectraTokenizer.from_pretrained('google/electra-large-discriminator')
     args.lm = 'electra'
   else:
-    print("Please specifify valid model from {'bert', 'roberta', 'electra'}", file=sys.stderr)
+    print("Please specifify valid model from {'bert', 'bert-large', 'roberta', 'electra', 'electra-large'}", file=sys.stderr)
     exit()
-
-model.to(device)
-from load_data import *
 
 all_exs = []
 all_data = []
@@ -132,12 +124,12 @@ if 'matres' in args.data:
   exs, data = matres_train_examples(tokenizer, lm=args.lm, train=True, mask_events=args.mask_events, mask_context=args.mask_context)
   if args.num_examples_nd:
     exs = random.sample(exs, args.num_examples_nd)
-    data = convert_distant_examples_to_features(exs,
-                                                 tokenizer=tokenizer,
-                                                 max_seq_length=MAX_SEQ_LENGTH,
-                                                 doc_stride=DOC_STRIDE,
-                                                 mask_events=args.mask_events,
-                                                 mask_context=args.mask_context)
+    data = convert_examples_to_features(exs,
+                                        tokenizer=tokenizer,
+                                        max_seq_length=MAX_SEQ_LENGTH,
+                                        doc_stride=DOC_STRIDE,
+                                        mask_events=args.mask_events,
+                                        mask_context=args.mask_context)
     data = make_tensor_dataset(data, model=args.lm)
   all_exs.append(exs)
   all_data.append(data)
@@ -170,12 +162,12 @@ if 'udst' in args.data:
   exs, data = udst(tokenizer, lm=args.lm, split="train", mask_events=args.mask_events, mask_context=args.mask_context)
   if args.num_examples_nd:
     exs = random.sample(exs, args.num_examples_nd)
-    data = convert_distant_examples_to_features(exs,
-                                                 tokenizer=tokenizer,
-                                                 max_seq_length=MAX_SEQ_LENGTH,
-                                                 doc_stride=DOC_STRIDE,
-                                                 mask_events=args.mask_events,
-                                                 mask_context=args.mask_context)
+    data = convert_examples_to_features(exs,
+                                        tokenizer=tokenizer,
+                                        max_seq_length=MAX_SEQ_LENGTH,
+                                        doc_stride=DOC_STRIDE,
+                                        mask_events=args.mask_events,
+                                        mask_context=args.mask_context)
     data = make_tensor_dataset(data, model=args.lm)
   all_exs.append(exs)
   all_data.append(data)
@@ -221,22 +213,6 @@ elif len(all_exs) == 1:
   print("one dataset specified")
   exs = all_exs[0]
   data = all_data[0]
-  if args.prune:
-    pruner = Pruner()
-    new_exs = []
-    if args.prune_choice and args.prune_choice == 'attr':
-      attributor = Attributor(model, tokenizer, device)
-    for ex in exs:
-      if args.prune_choice and args.prune_choice == 'attr':
-        exs.append(pruner.get_pruned_example(ex, choice='attr', attributor=attributor))
-      else:
-        exs.append(pruner.get_pruned_example(ex))
-      if len(exs) % 1000 == 0:
-        print(len(exs))
-    pickle.dump(new_exs, open(OUTPUT_DIR+"pruned.emb", "wb"))
-    exs = exs + new_exs
-    data = convert_distant_examples_to_features(exs, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.mask)
-    data = make_tensor_dataset(data,model=args.lm)
 else:
   print("using multiple data sources")
   inputs = []
@@ -297,7 +273,6 @@ exs_cpy = exs
 
 all_preds = 0
 high_conf_preds = 0
-
 
 UNSUP_BATCH_SIZE = args.unsup_batch if args.unsup_batch else int(TRAIN_BATCH_SIZE/2)
 
@@ -360,10 +335,10 @@ def unsup_loss(model):
     u_idxs_pos += UNSUP_BATCH_SIZE
   method = args.uda_method if args.uda_method else "random"
   unsup_batch, trans_batch = get_uda_examples(idxs=idxs, method=method)
-  unsup_batch = convert_distant_examples_to_features(unsup_batch, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.unsup_mask)
+  unsup_batch = convert_examples_to_features(unsup_batch, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.unsup_mask)
   if len(unsup_batch) == 0:
     return None
-  trans_batch = convert_distant_examples_to_features(trans_batch, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.unsup_mask)
+  trans_batch = convert_examples_to_features(trans_batch, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.unsup_mask)
   if len(unsup_batch) != len(trans_batch):
     return None
       
@@ -393,31 +368,10 @@ def unsup_loss(model):
 for ep in trange(num_epochs, desc="Epoch"):
     if args.random_mask:
       exs  = apply_random_mask(exs_cpy, tokenizer, threshold=args.random_mask)
-      data = convert_distant_examples_to_features(exs, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.mask)
+      data = convert_examples_to_features(exs, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.mask)
       data = make_tensor_dataset(data, model=args.lm)
       data_sampler = RandomSampler(data)
       dataloader = DataLoader(data, sampler=data_sampler, batch_size=TRAIN_BATCH_SIZE)
-    if args.prune_rep:
-      pruner = Pruner()
-      del exs
-      torch.cuda.empty_cache()
-      exs = []
-      if args.prune_choice and args.prune_choice == 'attr':
-        attributor = Attributor(model, tokenizer, device)
-      for ex in exs_cpy:
-        if args.prune_choice and args.prune_choice == 'attr':
-          exs.append(pruner.get_pruned_example(ex, choice='attr', attributor=attributor))
-        else:
-          exs.append(pruner.get_pruned_example(ex))
-        if len(exs) % 500 == 0:
-          print(len(exs))
-      exs = exs + exs_cpy
-      data = convert_distant_examples_to_features(exs, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.mask)
-      data = make_tensor_dataset(data, model=args.lm)
-      data_sampler = RandomSampler(data)
-      dataloader = DataLoader(data, sampler=data_sampler, batch_size=TRAIN_BATCH_SIZE)
-    #pickle.dump(new_exs, open(OUTPUT_DIR+"pruned.emb", "wb"))
-      model.to(device)
     last_loss_kldiv = 0
     for step, batch in enumerate(tqdm(dataloader, desc="Iteration " + str(ep), disable=args.disable_tqdm)):
         bbatch = tuple(t.to(device) for t in batch) # multi-gpu does scattering it-self
@@ -432,12 +386,8 @@ for ep in trange(num_epochs, desc="Epoch"):
         loss.backward()
         if step % 100 == 0:
           print("Loss: %.3f at step %d" %(loss.item(), step), file=logfile)
-          if args.print_loss:
-            print("Loss: %.3f at step %d" %(loss.item(), step))
           if args.unsup and last_loss_kldiv:
             print("Unsup Loss: %.3f at step %d" %(last_loss_kldiv, step), file=logfile)
-            if args.print_loss:
-              print("Unsup Loss: %.3f at step %d" %(last_loss_kldiv, step))
         optimizer.step()
         scheduler.step()
         model.zero_grad()
