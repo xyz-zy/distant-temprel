@@ -110,17 +110,17 @@ def get_data(tokenizer, data_source):
     elif data_source == 'udst_dev_maj_conf':
         print("using UDS-T dev examples, majority vote, conf-broken")
         examples, data = udst(
-            tokenizer, lm=args.lm, split="dev", example_dir="DecompTime/DecompTime/maj_conf/", mask_events=args.mask_events)
+            tokenizer, lm=args.lm, split="dev", example_dir="udst/DecompTime/maj_conf/", mask_events=args.mask_events)
         count_labels(examples)
     elif data_source == 'udst_dev_maj_conf_nt':
         print("using UDS-T dev examples, majority vote, conf-broken, no ties")
         examples, data = udst(
-            tokenizer, lm=args.lm, split="dev", example_dir="DecompTime/DecompTime/maj_conf_nt/", mask_events=args.mask_events)
+            tokenizer, lm=args.lm, split="dev", example_dir="udst/DecompTime/maj_conf_nt/", mask_events=args.mask_events)
         count_labels(examples)
     elif data_source == 'udst_dev_ilp':
         print("using UDS-T dev examples, ilp")
         examples, data = udst(
-            tokenizer, lm=args.lm, split="dev", example_dir="DecompTime/DecompTime/ilp/", mask_events=args.mask_events)
+            tokenizer, lm=args.lm, split="dev", example_dir="udst/DecompTime/ilp/", mask_events=args.mask_events)
         count_labels(examples)
     elif data_source == 'udst_test_maj':
         print("using UDS-T test examples, majority vote")
@@ -129,7 +129,7 @@ def get_data(tokenizer, data_source):
     elif data_source == 'udst_test_maj_conf_nt':
         print("using UDS-T dev examples, majority vote, no ties")
         examples, data = udst_majority(
-            tokenizer, lm=args.lm, split="test", example_dir="DecompTime/DecompTime/maj_conf_nt/", mask_events=args.mask_events)
+            tokenizer, lm=args.lm, split="test", example_dir="udst/DecompTime/maj_conf_nt/", mask_events=args.mask_events)
         count_labels(examples)
     elif data_source == 'pkl':
         assert args.pkl is not None

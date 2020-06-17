@@ -1,7 +1,6 @@
 import json
 import pickle
 
-from beforeafter import examples as beforeafter
 from utils import convert_examples_to_features
 from load_data import *
 #from ne import NEReplacer
@@ -87,12 +86,12 @@ def test_load_udst_train():
 
 
 def test_load_udst_dev_maj_conf_nt():
-    exs, data = udst(tokenizer, split="dev", example_dir="DecompTime/DecompTime/maj_conf_nt/")
+    exs, data = udst(tokenizer, split="dev", example_dir="udst/DecompTime/maj_conf_nt/")
     return exs, data
 
 
 def test_load_udst_test_maj_conf_nt():
-    exs, data = udst(tokenizer, split="test", example_dir="DecompTime/DecompTime/maj_conf_nt/")
+    exs, data = udst(tokenizer, split="test", example_dir="udst/DecompTime/maj_conf_nt/")
     return exs, data
 
 
@@ -139,7 +138,7 @@ def test_load_beforeafter_gigaword(num_examples=1000):
 
 
 def test_beforeafter_mask():
-    exs = beforeafter.get_examples("beforeafter/examples/", num_examples=1000)
+    exs = get_beforeafter_examples("beforeafter/examples/", num_examples=1000)
     fes = convert_examples_to_features(
         examples=exs,
         tokenizer=tokenizer,

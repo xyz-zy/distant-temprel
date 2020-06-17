@@ -11,7 +11,7 @@ from utils import convert_examples_to_features, apply_random_mask
 
 from transformers import RobertaTokenizer
 
-from DecompTime import parse_udst
+from udst import parse_udst
 from timebank.examples import MatresLoader
 
 sys.path.insert(1, 'Temporal-event-ordering/event_model')
@@ -259,7 +259,7 @@ def distant_parsed_examples(tokenizer, lm='roberta', ext='', num_examples=None, 
     return exs, data
 
 
-def udst(tokenizer, lm='roberta', split="train", example_dir="DecompTime/DecompTime/out/", mask_events=False, mask_context=False):
+def udst(tokenizer, lm='roberta', split="train", example_dir="udst/DecompTime/out/", mask_events=False, mask_context=False):
     exs = parse_udst.get_examples(
         example_dir=example_dir, split=split)
     feats = convert_examples_to_features(examples=exs,
@@ -273,7 +273,7 @@ def udst(tokenizer, lm='roberta', split="train", example_dir="DecompTime/DecompT
     return exs, data
 
 
-def udst_majority(tokenizer, lm='roberta', example_dir="DecompTime/DecompTime/out/", split="dev", mask_events=False, ties=True):
+def udst_majority(tokenizer, lm='roberta', example_dir="udst/DecompTime/out/", split="dev", mask_events=False, ties=True):
     exs = parse_udst.get_majority_examples(
         example_dir=example_dir, split=split, ties=ties)
     feats = convert_examples_to_features(examples=exs,
