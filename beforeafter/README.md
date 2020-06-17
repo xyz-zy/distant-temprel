@@ -1,4 +1,4 @@
-# BeforeAfter Example Parser
+# BeforeAfter Example Parsing
 
 1. Generate syntactic parse tree and output to `TREE_DIR/<filename>_<rel>.tree/txt`. Two methods:
   
