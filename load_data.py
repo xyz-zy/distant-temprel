@@ -11,19 +11,15 @@ from utils import convert_examples_to_features, apply_random_mask
 from transformers import RobertaTokenizer
 
 from DecompTime import parse_udst
-from beforeafter import examples as examples_util
+from beforeafter import examples as beforeafter
 from timebank.examples import MatresLoader
 
 sys.path.insert(1, 'Temporal-event-ordering/event_model')
 
 
 def beforeafter_examples(tokenizer, lm='roberta', ext='', num_examples=None, mask=False, during=True):
-    g_train_examples = examples_util.get_examples(
+    g_train_examples = beforeafter.get_examples(
         EXAMPLE_DIR="beforeafter/examples" + ext + "/", num_examples=num_examples, during=during)
-    for ex in g_train_examples:
-        ex.sent1 = ex.sent2 = ex.tokens
-        ex.e1_idx = ex.e1_pos
-        ex.e2_idx = ex.e2_pos
     if mask:
         mask = 'beforeafter'
         print(mask)

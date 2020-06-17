@@ -20,6 +20,14 @@ class IndexedExamplePartial(object):
     def __repr__(self):
         return str(self.sent1) + "\n" + str(self.sent2) + "\n" + str(self.e1_idx) + "  " + str(self.e2_idx) + "\n" + self.sent1[self.e1_idx] + "  " + self.sent2[self.e2_idx]
 
+    def from_json(json_obj, doc_name=None):
+        return IndexedExamplePartial(label=json_obj["label"],
+                                     sent1=json_obj["tokens"],
+                                     sent2=json_obj["tokens"],
+                                     tags1=None, tags2=None,
+                                     e1_idx=json_obj["e1_pos"],
+                                     e2_idx=json_obj["e2_pos"],
+                                     doc_name=doc_name)
 
 class InputFeatures(object):
     """Object containing the features for one example/data."""
