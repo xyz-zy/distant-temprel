@@ -27,31 +27,23 @@ def get_train_data(data, tokenizer, lm, num_examples=None, mask=True, distant_so
         exs, data = beforeafter_examples(tokenizer, lm=lm, ext="_yelp", num_examples=num_examples, mask=mask)
     elif data == "matres":
         print("Using MATRES train examples.")
-        exs, data = matres_train_examples(tokenizer, lm=lm)
+        exs, data, feats = matres_train_examples(tokenizer, lm=lm)
         if num_examples:
-            exs = random.sample(exs, num_examples)
-            exs, data = convert_examples_to_features(exs,
-                                        tokenizer=tokenizer,
-                                        max_seq_length=MAX_SEQ_LENGTH,
-                                        doc_stride=DOC_STRIDE)
-                                        #mask_events=args.mask_events,
-                                        #mask_context=args.mask_context)
-            data = make_tensor_dataset(data, model=args.lm)
+            idxs = random.sample(list(range(len(exs))), num_examples)
+            exs = [exs[i] for i in idxs]
+            feats = [feats[i] for i in idxs]
+            data = make_tensor_dataset(feats, model=lm)
     elif data == "distant":
         print("Using DistantTimex train examples.")
-        examples, data = distant_train_examples(tokenizer, lm=lm, source=distnat_source, mask=mask, num_examples=num_examples)
+        exs, data = distant_train_examples(tokenizer, lm=lm, source=distant_source, mask=mask, num_examples=num_examples)
     elif data == "udst":
         print("Using UDS-T train examples.")
-        exs, data = udst(tokenizer, lm=lm, split="train")
+        exs, data, feats = udst(tokenizer, lm=lm, split="train")
         if num_examples:
-            exs = random.sample(exs, num_examples)
-            exs, data = convert_examples_to_features(exs,
-                                        tokenizer=tokenizer,
-                                        max_seq_length=MAX_SEQ_LENGTH,
-                                        doc_stride=DOC_STRIDE)
-                                        #mask_events=args.mask_events,
-                                        #mask_context=args.mask_context)
-            data = make_tensor_dataset(data, model=args.lm)
+            idxs = random.sample(list(range(len(exs))), num_examples)
+            exs = [exs[i] for i in idxs]
+            feats = [feats[i] for i in idxs]
+            data = make_tensor_dataset(feats, model=lm)
     elif data.endswith(".pkl"):
         inputs = pickle.load(open(data, "rb"))
         exs = inputs["exs"]
@@ -148,7 +140,7 @@ def matres_train_examples(tokenizer, lm='roberta', mask_events=False, mask_conte
         mask_events=mask_events,
         mask_context=mask_context)
     train_data = make_tensor_dataset(train_features, model=lm)
-    return train_examples, train_data
+    return train_examples, train_data, train_features
 
 
 def matres_dev_examples(tokenizer, lm='roberta', mask_events=False, mask_context=False):
@@ -199,13 +191,16 @@ def distant_train_examples(tokenizer, lm='roberta', source=None, ext='', num_exa
         exs = filter_distant_source(exs, num_examples=num_examples/6, source="afp")
     else:
         exs = filter_distant_source(exs, source)
-    if num_examples and num_examples > len(exs):
-        more_examples = _distant_parsed_examples(tokenizer,
+
+    if num_examples: 
+        if num_examples > len(exs):
+            more_examples = _distant_parsed_examples(tokenizer,
                                                  source=source,
                                                  ext='',
                                                  num_examples=num_examples-len(exs))
-        exs += more_examples
+            exs += more_examples
         exs = exs[:num_examples]
+
     if random_mask:
         exs = apply_random_mask(exs, tokenizer)
     if mask:
@@ -317,7 +312,7 @@ def udst(tokenizer, lm='roberta', split="train", example_dir="udst/DecompTime/ou
                                               mask_events=mask_events,
                                               mask_context=mask_context)
     data = make_tensor_dataset(feats, model=lm)
-    return exs, data
+    return exs, data, feats
 
 
 def udst_majority(tokenizer, lm='roberta', example_dir="udst/DecompTime/out/", split="dev", mask_events=False, ties=True):

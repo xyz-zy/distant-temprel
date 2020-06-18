@@ -68,7 +68,7 @@ all_data = []
 if not args.num_examples:
     args.num_examples = [None] * len(args.data)
 else:
-    args.num_examples += [None] * len(args.data) - len(args.num_examples)
+    args.num_examples += [None] * (len(args.data) - len(args.num_examples))
 print(args.data, args.num_examples)
 
 for data_source, num_exs in zip(args.data, args.num_examples):
@@ -205,7 +205,9 @@ def unsup_loss(model):
 
 for ep in trange(num_epochs, desc="Epoch"):
     last_loss_kldiv = 0
-    for step, batch in enumerate(tqdm(dataloader, desc="Iteration " + str(ep), disable=args.disable_tqdm)):
+    for step, batch in enumerate(tqdm(dataloader,
+                                      desc="Iteration " + str(ep),
+                                      disable=args.disable_tqdm)):
         bbatch = tuple(t.to(device) for t in batch)
         loss, _, _ = model(*bbatch)
 
