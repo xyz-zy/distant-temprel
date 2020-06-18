@@ -30,7 +30,7 @@ def get_train_data(data, tokenizer, lm, num_examples=None, mask=True, distant_so
         exs, data = matres_train_examples(tokenizer, lm=lm)
         if num_examples:
             exs = random.sample(exs, num_examples)
-            data = convert_examples_to_features(exs,
+            exs, data = convert_examples_to_features(exs,
                                         tokenizer=tokenizer,
                                         max_seq_length=MAX_SEQ_LENGTH,
                                         doc_stride=DOC_STRIDE)
@@ -45,7 +45,7 @@ def get_train_data(data, tokenizer, lm, num_examples=None, mask=True, distant_so
         exs, data = udst(tokenizer, lm=lm, split="train")
         if num_examples:
             exs = random.sample(exs, num_examples)
-            data = convert_examples_to_features(exs,
+            exs, data = convert_examples_to_features(exs,
                                         tokenizer=tokenizer,
                                         max_seq_length=MAX_SEQ_LENGTH,
                                         doc_stride=DOC_STRIDE)
@@ -118,7 +118,7 @@ def beforeafter_examples(tokenizer, lm='roberta', ext='', num_examples=None, mas
     if mask:
         mask = 'beforeafter'
         print(mask)
-    g_train_features = convert_examples_to_features(
+    g_train_examples, g_train_features = convert_examples_to_features(
         examples=g_train_examples,
         tokenizer=tokenizer,
         max_seq_length=MAX_SEQ_LENGTH,
@@ -140,7 +140,7 @@ def matres_examples():
 def matres_train_examples(tokenizer, lm='roberta', mask_events=False, mask_context=False):
     train_examples, _ = matres_examples()
 
-    train_features = convert_examples_to_features(
+    train_examples, train_features = convert_examples_to_features(
         examples=train_examples,
         tokenizer=tokenizer,
         max_seq_length=MAX_SEQ_LENGTH,
@@ -154,7 +154,7 @@ def matres_train_examples(tokenizer, lm='roberta', mask_events=False, mask_conte
 def matres_dev_examples(tokenizer, lm='roberta', mask_events=False, mask_context=False):
     _, dev_examples = matres_examples()
 
-    dev_features = convert_examples_to_features(
+    dev_examples, dev_features = convert_examples_to_features(
         examples=dev_examples,
         tokenizer=tokenizer,
         max_seq_length=MAX_SEQ_LENGTH,
@@ -169,7 +169,7 @@ def matres_test_examples(tokenizer, lm='roberta', mask_events=False, mask_contex
     loader = MatresLoader()
     examples = loader.read_test_examples(doc_dir="timebank/te3-platinum/", rel_dir="timebank/MATRES/")
  
-    features = convert_examples_to_features(
+    examples, features = convert_examples_to_features(
         examples=examples,
         tokenizer=tokenizer,
         max_seq_length=MAX_SEQ_LENGTH,
@@ -194,43 +194,45 @@ def filter_distant_source(exs, num_examples=None, source=None):
 
 def distant_train_examples(tokenizer, lm='roberta', source=None, ext='', num_examples=None, mask=False, random_mask=False, mask_events=False):
     f = open('Temporal-event-ordering/event_model/train_data.pkl', 'rb')
-    train_examples = pickle.load(f)
+    exs = pickle.load(f)
     if source == "even":
-      train_examples = filter_distant_source(train_examples, num_examples=num_examples/6, source="afp")
+        exs = filter_distant_source(exs, num_examples=num_examples/6, source="afp")
     else:
-      train_examples = filter_distant_source(train_examples, source)
-    if num_examples and num_examples > len(train_examples):
-        more_examples = _distant_parsed_examples(
-            tokenizer, source=source, ext='', num_examples=num_examples-len(train_examples))
-        train_examples += more_examples
-        train_examples = train_examples[:num_examples]
+        exs = filter_distant_source(exs, source)
+    if num_examples and num_examples > len(exs):
+        more_examples = _distant_parsed_examples(tokenizer,
+                                                 source=source,
+                                                 ext='',
+                                                 num_examples=num_examples-len(exs))
+        exs += more_examples
+        exs = exs[:num_examples]
     if random_mask:
-        train_examples = apply_random_mask(train_examples, tokenizer)
+        exs = apply_random_mask(exs, tokenizer)
     if mask:
         mask = 'distant'
-    data = convert_examples_to_features(examples=train_examples,
-                                                tokenizer=tokenizer,
-                                                max_seq_length=MAX_SEQ_LENGTH,
-                                                doc_stride=DOC_STRIDE,
-                                                mask=mask,
-                                                mask_events=mask_events)
-    data = make_tensor_dataset(data, model=lm)
-    return train_examples, data
+    exs, feats = convert_examples_to_features(examples=exs,
+                                              tokenizer=tokenizer,
+                                              max_seq_length=MAX_SEQ_LENGTH,
+                                              doc_stride=DOC_STRIDE,
+                                              mask=mask,
+                                              mask_events=mask_events)
+    data = make_tensor_dataset(feats, model=lm)
+    return exs, data
 
 
 def distant_test_examples(tokenizer, lm='roberta', train=False, mask=False, mask_events=False):
     f = open('Temporal-event-ordering/event_model/test_data.pkl', 'rb')
-    test_examples = pickle.load(f)
+    exs = pickle.load(f)
     if mask:
         mask = 'distant'
-    data = convert_examples_to_features(examples=test_examples,
-                                                tokenizer=tokenizer,
-                                                max_seq_length=MAX_SEQ_LENGTH,
-                                                doc_stride=DOC_STRIDE,
-                                                mask=mask,
-                                                mask_events=mask_events)
-    data = make_tensor_dataset(data, model=lm)
-    return test_examples, data
+    exs, feats  = convert_examples_to_features(examples=exs,
+                                               tokenizer=tokenizer,
+                                               max_seq_length=MAX_SEQ_LENGTH,
+                                               doc_stride=DOC_STRIDE,
+                                               mask=mask,
+                                               mask_events=mask_events)
+    data = make_tensor_dataset(feats, model=lm)
+    return exs, data
 
 
 def _distant_parsed_examples(tokenizer, source=None, ext='', num_examples=None):
@@ -294,26 +296,26 @@ def distant_parsed_examples(tokenizer, lm='roberta', ext='', num_examples=None, 
     if mask:
         mask = 'distant'
     print(len(exs), mask)
-    data = convert_examples_to_features(examples=exs,
-                                                tokenizer=tokenizer,
-                                                max_seq_length=MAX_SEQ_LENGTH,
-                                                doc_stride=DOC_STRIDE,
-                                                mask=mask,
-                                                mask_events=mask_events)
-    data = make_tensor_dataset(data, model=lm)
+    exs, feats = convert_examples_to_features(examples=exs,
+                                              tokenizer=tokenizer,
+                                              max_seq_length=MAX_SEQ_LENGTH,
+                                              doc_stride=DOC_STRIDE,
+                                              mask=mask,
+                                              mask_events=mask_events)
+    data = make_tensor_dataset(feats, model=lm)
     return exs, data
 
 
 def udst(tokenizer, lm='roberta', split="train", example_dir="udst/DecompTime/out/", mask_events=False, mask_context=False):
     exs = parse_udst.get_examples(
         example_dir=example_dir, split=split)
-    feats = convert_examples_to_features(examples=exs,
-                                                 tokenizer=tokenizer,
-                                                 max_seq_length=MAX_SEQ_LENGTH,
-                                                 doc_stride=DOC_STRIDE,
-                                                 mask=False,
-                                                 mask_events=mask_events,
-                                                 mask_context=mask_context)
+    exs, feats = convert_examples_to_features(examples=exs,
+                                              tokenizer=tokenizer,
+                                              max_seq_length=MAX_SEQ_LENGTH,
+                                              doc_stride=DOC_STRIDE,
+                                              mask=False,
+                                              mask_events=mask_events,
+                                              mask_context=mask_context)
     data = make_tensor_dataset(feats, model=lm)
     return exs, data
 
@@ -321,12 +323,12 @@ def udst(tokenizer, lm='roberta', split="train", example_dir="udst/DecompTime/ou
 def udst_majority(tokenizer, lm='roberta', example_dir="udst/DecompTime/out/", split="dev", mask_events=False, ties=True):
     exs = parse_udst.get_majority_examples(
         example_dir=example_dir, split=split, ties=ties)
-    feats = convert_examples_to_features(examples=exs,
-                                                 tokenizer=tokenizer,
-                                                 max_seq_length=MAX_SEQ_LENGTH,
-                                                 doc_stride=DOC_STRIDE,
-                                                 mask=False,
-                                                 mask_events=mask_events)
+    exs, feats = convert_examples_to_features(examples=exs,
+                                              tokenizer=tokenizer,
+                                              max_seq_length=MAX_SEQ_LENGTH,
+                                              doc_stride=DOC_STRIDE,
+                                              mask=False,
+                                              mask_events=mask_events)
     data = make_tensor_dataset(feats, model=lm)
     return exs, data
 

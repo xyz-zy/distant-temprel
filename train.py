@@ -2,6 +2,17 @@
 train.py: script for training
 '''
 
+from uda.ne import NEReplacer
+from uda.prune import Pruner
+from modeling import load_model_and_tokenizer, make_tensor_dataset, get_tensors
+from modeling import BertForMatres, RobertaForMatres, ElectraForMatres
+from load_data import *
+from timebank.examples import ExampleLoader, MatresLoader
+from tqdm import tqdm, trange
+from transformers import *
+from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
+                              TensorDataset, ConcatDataset)
+from constants import *
 import argparse
 import os
 import sys
@@ -11,11 +22,13 @@ from itertools import chain
 from utils import count_labels
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data', nargs='+', help='beforeafter,beforeafter_nd,beforeafter_yelp,matres,distant,distant_dct,udst')
+parser.add_argument('--data', nargs='+',
+                    help='beforeafter,beforeafter_nd,beforeafter_yelp,matres,distant,distant_dct,udst')
 parser.add_argument('--output_dir', help='path to model output directory')
 parser.add_argument('--model_dir', help='directory for pretrained model')
 parser.add_argument('--distant_source', help='{afp,apw,nyt,cna,wpb}')
-parser.add_argument('--num_examples', nargs='+', type=int, help='only supported for beforeafter and distant')
+parser.add_argument('--num_examples', nargs='+', type=int,
+                    help='only supported for beforeafter and distant')
 parser.add_argument('--mask', action='store_true')
 parser.add_argument('--lm', help='bert,roberta,electra')
 parser.add_argument('--mask_events', action='store_true')
@@ -35,34 +48,19 @@ parser.add_argument('--disable_tqdm', action='store_true')
 args = parser.parse_args()
 print(args)
 
-from constants import *
 
 TRAIN_BATCH_SIZE = args.batch if args.batch else TRAIN_BATCH_SIZE
 print("train batch size", TRAIN_BATCH_SIZE)
 LEARNING_RATE = args.lr if args.lr else LEARNING_RATE
 print("learning_rate", LEARNING_RATE)
 
-from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
-                              TensorDataset, ConcatDataset)
-                             
-from transformers import *
-from tqdm import tqdm, trange
-
-from timebank.examples import ExampleLoader, MatresLoader
-
-from load_data import *
-
-from modeling import BertForMatres, RobertaForMatres, ElectraForMatres
-from modeling import load_model_and_tokenizer, make_tensor_dataset, get_tensors
-
-from uda.prune import Pruner
-from uda.ne import NEReplacer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 n_gpu = torch.cuda.device_count()
 print(device, n_gpu)
 
-model, tokenizer = load_model_and_tokenizer(lm=args.lm, model_dir=args.model_dir)
+model, tokenizer = load_model_and_tokenizer(
+    lm=args.lm, model_dir=args.model_dir)
 
 all_exs = []
 all_data = []
@@ -74,9 +72,10 @@ else:
 print(args.data, args.num_examples)
 
 for data_source, num_exs in zip(args.data, args.num_examples):
-   exs, data = get_train_data(data_source, tokenizer, lm=args.lm, num_examples=num_exs, mask=args.mask, distant_source=args.distant_source)
-   all_exs.append(exs)
-   all_data.append(data)
+    exs, data = get_train_data(data_source, tokenizer, lm=args.lm,
+                               num_examples=num_exs, mask=args.mask, distant_source=args.distant_source)
+    all_exs.append(exs)
+    all_data.append(data)
 
 '''
 if args.unsup:
@@ -98,27 +97,29 @@ if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
 if len(all_exs) == 0:
-  print("no dataset specified")
+    print("no dataset specified")
 elif len(all_exs) == 1:
-  print("one dataset specified")
-  exs = all_exs[0]
-  data = all_data[0]
+    print("one dataset specified")
+    exs = all_exs[0]
+    data = all_data[0]
 else:
-  print("using multiple data sources")
-  inputs = []
-  for i in range(len(all_data[0].tensors)):
-    inputs.append(torch.cat([d.tensors[i] for d in all_data]))
+    print("using multiple data sources")
+    inputs = []
+    for i in range(len(all_data[0].tensors)):
+        inputs.append(torch.cat([d.tensors[i] for d in all_data]))
 
-  exs = list(chain(*all_exs))
-  data = TensorDataset(*inputs) 
+    exs = list(chain(*all_exs))
+    data = TensorDataset(*inputs)
 
 
 data_sampler = RandomSampler(data)
-dataloader = DataLoader(data, sampler=data_sampler, batch_size=TRAIN_BATCH_SIZE)
+dataloader = DataLoader(data, sampler=data_sampler,
+                        batch_size=TRAIN_BATCH_SIZE)
 
 print(len(data), len(exs), "examples loaded")
 
-num_train_optimization_steps = int(len(data) / TRAIN_BATCH_SIZE / GRADIENT_ACCUMULATION_STEPS) * NUM_TRAIN_EPOCHS
+num_train_optimization_steps = int(
+    len(data) / TRAIN_BATCH_SIZE / GRADIENT_ACCUMULATION_STEPS) * NUM_TRAIN_EPOCHS
 print(num_train_optimization_steps, "optimization steps")
 num_warmup_steps = WARMUP_PROPORTION * num_train_optimization_steps
 
@@ -133,18 +134,22 @@ param_optimizer = [n for n in param_optimizer if 'pooler' not in n[0]]
 
 no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
 optimizer_grouped_parameters = [
-    {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
-    {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-    ]
+    {'params': [p for n, p in param_optimizer if not any(
+        nd in n for nd in no_decay)], 'weight_decay': 0.01},
+    {'params': [p for n, p in param_optimizer if any(
+        nd in n for nd in no_decay)], 'weight_decay': 0.0}
+]
 
 optimizer = AdamW(optimizer_grouped_parameters,
                   lr=LEARNING_RATE,
                   correct_bias=False)
-scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_train_optimization_steps)  # PyTorch scheduler
+scheduler = get_linear_schedule_with_warmup(optimizer,
+                                            num_warmup_steps=num_warmup_steps,
+                                            num_training_steps=num_train_optimization_steps)  # PyTorch scheduler
 
 if args.serialize:
-  inputs = {"exs" : exs, "data" : data}
-  pickle.dump(inputs, open(OUTPUT_DIR+"inputs.pkl", 'wb'))
+    inputs = {"exs": exs, "data": data}
+    pickle.dump(inputs, open(OUTPUT_DIR+"inputs.pkl", 'wb'))
 
 logfile = open(OUTPUT_DIR + "/log.txt", "w+")
 print(args, file=logfile)
@@ -156,7 +161,7 @@ print("learning_rate", LEARNING_RATE, file=logfile)
 global_step = 0
 num_epochs = args.epochs if not args.epochs is None else int(NUM_TRAIN_EPOCHS)
 if num_epochs == 0:
-  exit()
+    exit()
 model.train()
 exs_cpy = exs
 
@@ -201,33 +206,28 @@ def unsup_loss(model):
 for ep in trange(num_epochs, desc="Epoch"):
     last_loss_kldiv = 0
     for step, batch in enumerate(tqdm(dataloader, desc="Iteration " + str(ep), disable=args.disable_tqdm)):
-        bbatch = tuple(t.to(device) for t in batch) # multi-gpu does scattering it-self
+        bbatch = tuple(t.to(device) for t in batch)
         loss, _, _ = model(*bbatch)
 
         if args.unsup:
-          loss_kldiv = unsup_loss(model)
-          if loss_kldiv:
-            last_loss_kldiv = loss_kldiv.item()
-            loss += loss_kldiv
-        
+            loss_kldiv = unsup_loss(model)
+            if loss_kldiv:
+                last_loss_kldiv = loss_kldiv.item()
+                loss += loss_kldiv
+
         loss.backward()
         if step % 100 == 0:
-          print("Loss: %.3f at step %d" %(loss.item(), step), file=logfile)
-          #if args.unsup and last_loss_kldiv:
-          #  print("Unsup Loss: %.3f at step %d" %(last_loss_kldiv, step), file=logfile)
+            print("Loss: %.3f at step %d" % (loss.item(), step), file=logfile)
+            # if args.unsup and last_loss_kldiv:
+            #  print("Unsup Loss: %.3f at step %d" %(last_loss_kldiv, step), file=logfile)
         optimizer.step()
         scheduler.step()
         model.zero_grad()
         global_step += 1
-       
-        if n_gpu == 1:
-          del bbatch
-          torch.cuda.empty_cache()
-    
+
     # Save a trained model, configuration and tokenizer
     model_output_dir = OUTPUT_DIR + "/output_" + str(ep) + "/"
     if not os.path.exists(model_output_dir):
         os.makedirs(model_output_dir)
     model.save_pretrained(model_output_dir)
     tokenizer.save_pretrained(model_output_dir)
-

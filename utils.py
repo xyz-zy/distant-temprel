@@ -68,7 +68,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
     unique_id = 1
 
     features = []
-
+    processed_examples = []
     # Generates features from examples.
     for (example_index, example) in enumerate(examples):                        
         is_same_sentence = example.sent1 == example.sent2                       
@@ -179,8 +179,8 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
         if id_prefix:
             example.id = id_prefix + str(unique_id)
         unique_id += 1
-
-    return features
+        processed_examples.append(example)
+    return processed_examples, features
 
 def generate_explicit_mask(sent, label, tokenizer):
     masked_sent = sent.copy()

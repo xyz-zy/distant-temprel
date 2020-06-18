@@ -3,6 +3,7 @@ from sklearn.metrics import confusion_matrix
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import pandas as pd
 import statistics
 matplotlib.use('Agg')
 
@@ -150,3 +151,80 @@ def plot_confusion_matrix(true_labels, predictions, title, logfile):
                     color="white" if cm[i, j] > thresh else "black")
     fig.tight_layout()
     return fig, ax
+
+
+def get_fine_metrics(examples, guesses, labels, logfile=None):
+    """
+    Generates metrics for "said" examples and single- vs. cross-sentence
+    examples.
+    """
+    said_default_guesses = []
+    no_said_guesses = []
+    no_said_labels = []
+    said_correct = 0
+    said_incorrect = 0
+    same_sent = 0
+    diff_sent = 0
+    same_sent_correct = 0
+    diff_sent_correct = 0
+    for i, (ex, guess, label) in enumerate(zip(examples, guesses, labels)):
+        if ex.e1_sentence_num == ex.e2_sentence_num:
+            same_sent += 1
+            if guess == label:
+                same_sent_correct += 1
+        else:
+            diff_sent += 1
+            if guess == label:
+                diff_sent_correct += 1
+        if ex.sent1[ex.e1_idx] == 'said' or ex.sent2[ex.e2_idx] == 'said':
+            if guess == label:
+                said_correct += 1
+            else:
+                said_incorrect += 1
+            if ex.sent1[ex.e1_idx] == 'said':
+                said_default_guesses.append(CLASSES.index('AFTER'))
+            else:
+                said_default_guesses.append(CLASSES.index('BEFORE'))
+        else:
+            said_default_guesses.append(guess)
+            no_said_guesses.append(guess)
+            no_said_labels.append(label)
+    print("said_default_guess", file=logfile)
+    get_metrics(labels, said_default_guesses, logfile)
+    fig, ax = plot_confusion_matrix(labels, said_default_guesses,
+                                    "said_default_guess", logfile)
+    print("no_said", file=logfile)
+    get_metrics(no_said_labels, no_said_guesses, logfile)
+    fig, ax = plot_confusion_matrix(no_said_labels, no_said_guesses,
+                                    "no_said", logfile)
+    print("Number of same sentence examples, ", same_sent, file=logfile)
+    print("Number of diff sentence examples, ", diff_sent, file=logfile)
+    print("Same sentence acc:\t",
+          same_sent_correct / same_sent, file=logfile)
+    print("Diff sentence acc:\t",
+          diff_sent_correct / diff_sent, file=logfile)
+    print("Said exs acc:\t", said_correct /
+          (said_correct + said_incorrect), file=logfile)
+    print("said correct:\t", said_correct, file=logfile)
+    print("said incorrect:\t", said_incorrect, file=logfile)
+
+
+def output_results(data_source, examples, guesses, filename):
+    if "matres" in data_source:
+        df = [[ex.filename, ex.sent1 if ex.sent1 == ex.sent2 else ex.sent1+ex.sent2,
+               ex.sent1[ex.e1_idx], ex.e1_eid,
+               ex.sent2[ex.e2_idx], ex.e2_eid,
+               ex.label,
+               CLASSES[result]] for ex, result in zip(examples, guesses)]
+        df = pd.DataFrame(df, columns=[
+            "filename", "text", "e1", "e1_eid", "e2", "e2_eid", "label", "guess"])
+        df.to_csv(filename)
+    else:
+        df = [[ex.sent1 if ex.sent1 == ex.sent2 else ex.sent1+ex.sent2,
+               ex.sent1[ex.e1_idx],
+               ex.sent2[ex.e2_idx],
+               ex.label,
+               CLASSES[result]] for ex, result in zip(examples, guesses)]
+        df = pd.DataFrame(df,
+                          columns=["text", "e1", "e2", "label", "guess"])
+        df.to_csv(filename)
