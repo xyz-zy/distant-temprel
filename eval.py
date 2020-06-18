@@ -61,7 +61,7 @@ def get_data(tokenizer, data_source):
                                         lm=args.lm,
                                         num_examples=args.num_examples,
                                         mask=args.mask)
-    elif data_source == 'gigaword':
+    elif data_source == 'beforeafter':
         print("using beforeafter gigaword examples")
         examples, data = gigaword_examples(tokenizer, lm=args.lm)
     elif data_source == 'matres_dev':

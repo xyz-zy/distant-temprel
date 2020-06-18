@@ -52,7 +52,10 @@ def get_data(tokenizer, lm, data):
   lm: str, {bert, roberta}
   data: str
   '''
-  if data == 'udst_dev_maj':
+  if data == 'matres_dev':
+    exs, data = matres_dev_examples(tokenizer,
+                                    lm=args.lm)
+  elif data == 'udst_dev_maj':
     exs, data = udst_majority(tokenizer,
                               lm=lm,
                               example_dir=UDST_DIR,
