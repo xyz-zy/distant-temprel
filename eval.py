@@ -23,43 +23,12 @@ from metrics import *
 from test import count_labels
 from utils import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--data', nargs='+',
-                    help='gigaword,matres_train,matres_dev,distant_train,distant_test,udst_train,udst_dev,udst_dev_maj,udst_test_maj,udst_dev_maj_conf,udst_dev_ilp,udst_test_maj_conf_nt')
-parser.add_argument('--epoch')
-parser.add_argument('--untrained', action='store_true')
-parser.add_argument('--model_dir', nargs='+')
-parser.add_argument('--num_examples',
-                    help='only supported for distant_train')
-parser.add_argument('--mask', action='store_true')
-parser.add_argument('--lm', help='bert,roberta,electra')
-parser.add_argument('--output_results', action='store_true',
-                    help='toggle store results to csv')
-parser.add_argument('--save_emb', action='store_true')
-parser.add_argument('--mask_events', action='store_true')
-parser.add_argument('--mask_context', action='store_true')
-parser.add_argument('--ens_out_dir',
-                    help='directory for ensemble output files')
-parser.add_argument('--disable_tqdm', action='store_true')
-args = parser.parse_args()
-print(args)
-
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-n_gpu = torch.cuda.device_count()
-print(device, n_gpu)
-
-if not args.model_dir:
-    print("please specify --model_dir")
-    exit()
-
 
 def get_data(tokenizer, data_source):
     if data_source.endswith("_train") or data_source.endswith(".pkl"):
         examples, data = get_train_data(data_source[:len("_train")],
                                         tokenizer,
                                         lm=args.lm,
-                                        num_examples=args.num_examples,
                                         mask=args.mask)
     elif data_source == 'beforeafter':
         print("using beforeafter gigaword examples")
@@ -67,63 +36,55 @@ def get_data(tokenizer, data_source):
     elif data_source == 'matres_dev':
         print("using matres dev examples")
         examples, data = matres_dev_examples(tokenizer,
-                                             lm=args.lm,
-                                             mask_events=args.mask_events,
-                                             mask_context=args.mask_context)
+                                             lm=args.lm)#,
+                                             #mask_events=args.mask_events,
+                                             #mask_context=args.mask_context)
     elif data_source == 'matres_test':
         print("using matres test examples")
         examples, data = matres_test_examples(tokenizer,
-                                              lm=args.lm,
-                                              mask_events=args.mask_events,
-                                              mask_context=args.mask_context)
+                                              lm=args.lm)#,
+                                              #mask_events=args.mask_events,
+                                              #mask_context=args.mask_context)
     elif data_source == 'distant_dev' or data_source == "distant_test":
         print("using distant test examples")
         examples, data = distant_test_examples(tokenizer,
                                                lm=args.lm,
-                                               mask=args.mask,
-                                               mask_events=args.mask_events)
+                                               mask=args.mask)#,
+                                               #mask_events=args.mask_events)
     elif data_source == 'udst_dev':
         print("using UDS-T dev examples")
-        examples, data = udst(tokenizer, lm=args.lm, split="dev",
-                              mask_events=args.mask_events)
+        examples, data = udst(tokenizer, lm=args.lm, split="dev")#,
+                              #mask_events=args.mask_events)
     elif data_source == 'udst_dev_maj':
         print("using UDS-T dev examples, majority vote")
         examples, data = udst_majority(
-            tokenizer, lm=args.lm, split="dev", mask_events=args.mask_events)
-        count_labels(examples)
-    elif data_source == 'udst_dev_maj_nt':
-        print("using UDS-T dev examples, majority vote, no ties")
-        examples, data = udst_majority(
-            tokenizer, lm=args.lm, split="dev", mask_events=args.mask_events, ties=False)
-        count_labels(examples)
-    elif data_source == 'udst_dev_maj_conf':
-        print("using UDS-T dev examples, majority vote, conf-broken")
-        examples, data = udst(
-            tokenizer, lm=args.lm, split="dev", example_dir="udst/DecompTime/maj_conf/", mask_events=args.mask_events)
+            tokenizer, lm=args.lm, split="dev")#), mask_events=args.mask_events)
         count_labels(examples)
     elif data_source == 'udst_dev_maj_conf_nt':
         print("using UDS-T dev examples, majority vote, conf-broken, no ties")
-        examples, data = udst(
-            tokenizer, lm=args.lm, split="dev", example_dir="udst/DecompTime/maj_conf_nt/", mask_events=args.mask_events)
+        examples, data = udst(tokenizer, lm=args.lm, split="dev",
+                              example_dir="udst/DecompTime/maj_conf_nt/")#,
+                              #mask_events=args.mask_events)
         count_labels(examples)
     elif data_source == 'udst_dev_ilp':
         print("using UDS-T dev examples, ilp")
-        examples, data = udst(
-            tokenizer, lm=args.lm, split="dev", example_dir="udst/DecompTime/ilp/", mask_events=args.mask_events)
+        examples, data = udst(tokenizer, lm=args.lm, split="dev",
+                              example_dir="udst/DecompTime/ilp/")#,
+                              #mask_events=args.mask_events)
         count_labels(examples)
     elif data_source == 'udst_test_maj':
         print("using UDS-T test examples, majority vote")
         examples, data = udst_majority(tokenizer,
                                        lm=args.lm,
-                                       split="test",
-                                       mask_events=args.mask_events)
+                                       split="test")#,
+                                       #mask_events=args.mask_events)
     elif data_source == 'udst_test_maj_conf_nt':
         print("using UDS-T dev examples, majority vote, no ties")
         examples, data = udst_majority(tokenizer,
                                        lm=args.lm,
                                        split="test",
-                                       example_dir="udst/DecompTime/maj_conf_nt/",
-                                       mask_events=args.mask_events)
+                                       example_dir="udst/DecompTime/maj_conf_nt/")#,
+                                       #mask_events=args.mask_events)
         count_labels(examples)
     else:
         print("please specify valid dataset")
@@ -148,9 +109,9 @@ def eval(model_dir, epoch_num, data_source):
     all_labels = []
     print("Start evaluating", file=logfile)
 
-    if args.save_emb:
-        all_e1_hidden = []
-        all_e2_hidden = []
+    #if args.save_emb:
+    #    all_e1_hidden = []
+    #    all_e2_hidden = []
 
     for batch in tqdm(dataloader, desc="Evaluating", disable=args.disable_tqdm):
         if args.lm == 'roberta':
@@ -164,19 +125,19 @@ def eval(model_dir, epoch_num, data_source):
             for idx, guess in enumerate(guess_idxs):
                 all_results.append(guess.item())
                 all_labels.append(label_ids[idx].item())
-            if args.save_emb:
-                for e1, e2 in zip(hidden[0], hidden[1]):
-                    all_e1_hidden.append(e1.cpu())
-                    all_e2_hidden.append(e2.cpu())
+            #if args.save_emb:
+            #    for e1, e2 in zip(hidden[0], hidden[1]):
+            #        all_e1_hidden.append(e1.cpu())
+            #        all_e2_hidden.append(e2.cpu())
 
-    if args.save_emb:
-        print(len(all_e1_hidden))
-        output = []
-        for ex, e1_hidden, e2_hidden, label, guess in zip(examples, all_e1_hidden, all_e2_hidden, all_labels, all_results):
-            output.append(ExampleWithEmbeddings(
-                ex, e1_hidden, e2_hidden, label, guess))
-        pickle.dump(output, open(model_dir + data_source + ".emb", 'wb'))
-        print(len(output))
+    #if args.save_emb:
+    #    print(len(all_e1_hidden))
+    #    output = []
+    #    for ex, e1_hidden, e2_hidden, label, guess in zip(examples, all_e1_hidden, all_e2_hidden, all_labels, all_results):
+    #        output.append(ExampleWithEmbeddings(
+    #            ex, e1_hidden, e2_hidden, label, guess))
+    #    pickle.dump(output, open(model_dir + data_source + ".emb", 'wb'))
+    #    print(len(output))
 
     if args.output_results:
         output_results(data_source, examples, all_results,
@@ -187,13 +148,15 @@ def eval(model_dir, epoch_num, data_source):
 
     print(args, file=logfile)
     metrics = get_metrics(all_labels, all_results, logfile)
-    fig_title = "Untrained" if args.untrained else str(
-        epoch_num) + " Epochs"
-    fig, ax = plot_confusion_matrix(
-        all_labels, all_results, fig_title, logfile)
-    fig_save_path = model_base_dir if args.untrained else model_dir
-    fig_save_path = fig_save_path + data_source + ".png"
-    fig.savefig(fig_save_path)
+
+    # Plots confusion matrix and outputs to file
+    #fig_title = str(epoch_num) + " Epochs"
+    #fig, ax = plot_confusion_matrix(
+    #    all_labels, all_results, fig_title, logfile)
+    #fig_save_path = model_dir
+    #fig_save_path = fig_save_path + data_source + ".png"
+    #fig.savefig(fig_save_path)
+
     return metrics, {"preds": all_results, "labels": all_labels}
 
 
@@ -214,8 +177,8 @@ def eval_on_data(model_base_dir, data_source):
             out_basename = "distant_test_nomask"
     else:
         out_basename = data_source
-    if args.mask_events:
-        out_basename += "_me"
+    #if args.mask_events:
+    #    out_basename += "_me"
     all_results = []
     if args.epoch:
         model_dir = model_base_dir + "output_" + args.epoch + "/"
@@ -264,35 +227,73 @@ def eval_on_data(model_base_dir, data_source):
     return all_results
 
 
-for data_source in args.data:
-    all_model_results = []
-    for model_dir in args.model_dir:
-        all_epoch_results = eval_on_data(model_dir, data_source)
-        all_model_results.append(all_epoch_results)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data', nargs='+',
+                        choices=['beforeafter', 'matres_train', 'matres_dev',
+                                 'distant_train', 'distant_test',
+                                 'udst_train', 'udst_dev', 'udst_test',
+                                 'udst_dev_maj', 'udst_test_maj',
+                                 'udst_dev_maj_conf_nt',
+                                 'udst_test_maj_conf_nt'],
+                        help='data sources to evaluate on')
+    parser.add_argument('--mask', action='store_true')
+    parser.add_argument('--model_dir', nargs='+',
+                        help="model diretory containing model checkpoint directories, i.e. /PATH/TO/MODEL_CHKPTS/ that contains output_<#>/; if multiple arguments are given, then will output ensembled evaluation results per epoch.")
+    parser.add_argument('--epoch', type=int,
+                        help="only evaluate one model checkpoint, from an 'output_<epoch>/' directory withint --model_dir")
+    parser.add_argument('--lm', choices=['bert','roberta','electra'],
+                        help='model architecture')
+    parser.add_argument('--output_results', action='store_true',
+                        help='output model results to csv')
+    #parser.add_argument('--save_emb', action='store_true')
+    #parser.add_argument('--mask_events', action='store_true')
+    #parser.add_argument('--mask_context', action='store_true')
+    parser.add_argument('--ens_out_dir',
+                        help='directory for ensemble output files')
+    parser.add_argument('--disable_tqdm', action='store_true')
+    args = parser.parse_args()
+    print(args)
 
-    # If multiple model directories are specified, then ensembles
-    # the models and writes output.
-    if len(args.model_dir) > 1:
-        if args.ens_out_dir:
-            ensemble_file = open(args.ens_out_dir +
-                                 data_source + ".ens", "w+")
-        else:
-            ts = int(time.time())
-            ensemble_file = open(str(ts) + ".log", "w+")
-        print(args, file=ensemble_file)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    n_gpu = torch.cuda.device_count()
+    print(device, n_gpu)
 
-        min_epochs = min([len(model_results)
-                          for model_results in all_model_results])
-        for i in range(min_epochs):
-            print("Epoch " + str(i), file=ensemble_file)
-            all_preds = [model_results[i]['preds']
-                         for model_results in all_model_results]
-            print(len(all_preds))
-            print(len(all_preds[0]))
-            all_preds = list(map(list, zip(*all_preds)))
-            print(all_preds[:4])
-            all_preds = [max(set(lst), key=lst.count) for lst in all_preds]
-            print(all_preds[:4])
-            labels = all_model_results[0][i]['labels']
+    if not args.model_dir:
+        print("please specify --model_dir")
+        exit()
 
-            get_metrics(labels, all_preds, ensemble_file)
+    for data_source in args.data:
+        all_model_results = []
+        for model_dir in args.model_dir:
+            all_epoch_results = eval_on_data(model_dir, data_source)
+            all_model_results.append(all_epoch_results)
+
+        # If multiple model directories are specified, then ensembles
+        # the models and writes output.
+        if len(args.model_dir) > 1:
+            if args.ens_out_dir:
+                ensemble_file = open(args.ens_out_dir +
+                                     data_source + ".ens", "w+")
+            else:
+                ts = int(time.time())
+                ensemble_file = open(data_source + "_" + str(ts) + ".ens", "w+")
+            print(args, file=ensemble_file)
+
+            min_epochs = min([len(model_results)
+                              for model_results in all_model_results])
+            for i in range(min_epochs):
+                print("Epoch " + str(i), file=ensemble_file)
+                all_preds = [model_results[i]['preds']
+                             for model_results in all_model_results]
+                print(len(all_preds))
+                print(len(all_preds[0]))
+                all_preds = list(map(list, zip(*all_preds)))
+                print(all_preds[:4])
+                all_preds = [max(set(lst), key=lst.count) for lst in all_preds]
+                print(all_preds[:4])
+                labels = all_model_results[0][i]['labels']
+
+                get_metrics(labels, all_preds, ensemble_file)
+                print_confusion_matrix(labels, all_preds, ensemble_file)
+

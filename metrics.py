@@ -114,6 +114,14 @@ def get_metrics(gold_labels, guess_labels, logfile):
     return metrics
 
 
+def print_confusion_matrix(true_labels, predictions, logfile):
+    cm = confusion_matrix(true_labels, predictions)
+    total = sum(sum(cm))
+    print(total, file=logfile)
+    for row in cm:
+        print("\t".join([str(n) for n in row]), file=logfile)
+
+
 def plot_confusion_matrix(true_labels, predictions, title, logfile):
     cmap = plt.cm.Blues
 

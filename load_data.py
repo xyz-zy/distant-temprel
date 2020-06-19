@@ -185,7 +185,7 @@ def filter_distant_source(exs, num_examples=None, source=None):
 
 
 def distant_train_examples(tokenizer, lm='roberta', source=None, ext='', num_examples=None, mask=False, random_mask=False, mask_events=False):
-    f = open('Temporal-event-ordering/event_model/train_data.pkl', 'rb')
+    f = open('timex/orig/train_exs.pkl', 'rb')
     exs = pickle.load(f)
     if source == "even":
         exs = filter_distant_source(exs, num_examples=num_examples/6, source="afp")
@@ -216,7 +216,7 @@ def distant_train_examples(tokenizer, lm='roberta', source=None, ext='', num_exa
 
 
 def distant_test_examples(tokenizer, lm='roberta', train=False, mask=False, mask_events=False):
-    f = open('Temporal-event-ordering/event_model/test_data.pkl', 'rb')
+    f = open('timex/orig/test_exs.pkl', 'rb')
     exs = pickle.load(f)
     if mask:
         mask = 'distant'

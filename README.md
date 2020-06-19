@@ -7,7 +7,7 @@ Before running the model, make sure that the desired data files have been downlo
 * `timebank/README.md`: MATRES Dataset
 * `udst/README.md`: UDS-T Dataset
 * `beforeafter/README.md`: Distantly-labeled BeforeAfter Examples
-* TODO: Distantly-labeled Timex-anchored Examples
+* `timex`: Distantly-labeled Timex-anchored Examples
 
 ## Training & Evaluating
 

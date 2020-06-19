@@ -5,8 +5,11 @@ import numpy as np
 import torch
 from torch.utils.data import TensorDataset
 
-# TODO: revise imports 
-from transformers import *
+from transformers import BertPreTrainedModel
+from transformers import BertModel, RobertaModel, ElectraModel
+from transformers import BertTokenizer, RobertaTokenizer, ElectraTokenizer
+from transformers import RobertaConfig, ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers import ElectraConfig, ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP, load_tf_weights_in_electra
 
 class BertForTRC(BertPreTrainedModel):
     

@@ -8,7 +8,7 @@ from utils import apply_random_mask
 from .ne import NEReplacer
 from .prune import Pruner
 
-class UdaModule(object):
+class UdaDataset(object):
     def __init__(self, examples, batch_size):
         self.examples = examples
         self.batch_size = batch_size
@@ -73,4 +73,43 @@ class UdaModule(object):
             self.idxs_pos += self.batch_size
         method = method if method ense "random"
         old_batch, new_batch = self.get_new_examples(tokenizer, idxs=idxs, method=method, random_mask=random_mask)
-        return old_batch, new_batch 
+        return old_batch, new_batch
+
+
+def unsup_loss(args, model, logfile=None):
+    global all_preds, high_conf_preds, u_idxs_pos, u_idxs
+    unsup_batch, trans_batch = uda_dataset.get_batch(model=model,
+                               tokenizer=tokenizer,
+                               idxs=idxs,
+                               method=method)
+    unsup_batch = convert_examples_to_features(unsup_batch, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.unsup_mask)
+    if len(unsup_batch) == 0:
+        return None
+        trans_batch = convert_examples_to_features(trans_batch, tokenizer, MAX_SEQ_LENGTH, DOC_STRIDE, mask=args.unsup_mask)
+        if len(unsup_batch) != len(trans_batch):
+            return None
+ 
+    unsup_batch = get_tensors(unsup_batch)
+    trans_batch = get_tensors(trans_batch)
+    batch = tuple(torch.cat((u, t), dim=0).to(device) for u, t in zip(unsup_batch, trans_batch))
+    _, out, _ = model(*batch)
+    u_out = out[:len(unsup_batch)]
+    t_out = out[-len(trans_batch):]
+    u_preds = softmax(u_out, dim=1).detach()
+    threshold = .7 if args.unsup_conf else 0.0
+    high_conf_mask = torch.max(u_preds, dim=1).values >= threshold
+    all_preds += len(u_preds)
+    u_preds = u_preds[high_conf_mask]
+
+    if len(u_preds) == 0:
+        return None
+    high_conf_preds += len(u_preds)
+    print("filtered to ", high_conf_preds / all_preds, file=logfile)
+    t_out = t_out[high_conf_mask]
+    t_logits = log_softmax(t_out, dim=1)
+
+    loss_kldiv = kl_div(t_logits, u_preds, reduction='batchmean')
+    if args.uda_weight:
+        loss_kldiv *= args.uda_weight
+    return loss_kldiv
+

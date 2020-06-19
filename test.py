@@ -10,6 +10,17 @@ from transformers import *
 tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
 
+def count_sources(exs):
+    srcs = {}
+    for ex in exs:
+        src = ex.doc_name[:3].lower()
+        if src in srcs:
+            srcs[src] += 1
+        else:
+            srcs[src] = 1
+    return srcs
+
+
 def load_exs_data_from_model(model_dir):
     exs = pickle.load(open(model_dir+"/exs.pkl", 'rb'))
     data = pickle.load(open(model_dir+"/data.pkl", 'rb'))

@@ -12,6 +12,3 @@ GRADIENT_ACCUMULATION_STEPS = 1
 MAX_SEQ_LENGTH = 200
 DOC_STRIDE = 128
 
-# Model configs
-MODEL_NAME = 'bert-base-uncased'
-DO_LOWER_CASE = 'uncased' in MODEL_NAME

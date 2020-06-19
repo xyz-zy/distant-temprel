@@ -2,7 +2,7 @@ import itertools
 import random
 import re
 
-from transformers import RobertaTokenizer
+#from transformers import RobertaTokenizer
 
 from constants import CLASSES
 
@@ -110,11 +110,11 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
             inputs = tokenizer.encode_plus(
                 sent1_tokens, sent2_tokens, max_length=max_seq_length, add_special_tokens=True, pad_to_max_length=True)
         input_ids, attention_mask = inputs["input_ids"], inputs["attention_mask"]
-        if isinstance(tokenizer, RobertaTokenizer):
-            token_type_ids = None
-        else:
+        if 'token_type_ids' in inputs:
             token_type_ids = inputs['token_type_ids']
             assert len(token_type_ids) == max_seq_length
+        else:
+            token_type_ids = None
 
         example.tokens = tokenizer.convert_ids_to_tokens(input_ids)
         max_seq_length = len(input_ids)
