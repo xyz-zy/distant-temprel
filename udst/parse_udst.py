@@ -1,6 +1,6 @@
 import json
 
-data_dir = "DecompTime/out/"
+data_dir = "all_annotations/"
 splits = {"train" : "en-ud-train.json",
           "dev"   : "en-ud-dev.json",
           "test"  : "en-ud-test.json"}

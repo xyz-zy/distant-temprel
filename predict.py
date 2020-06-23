@@ -16,7 +16,7 @@ from constants import CLASSES, MAX_SEQ_LENGTH, DOC_STRIDE
 from load_data import *
 
 
-UDST_DIR = "DecompTime/DecompTime/out/"
+UDST_DIR = "udst/all_annotations/"
 
 def get_dummy_data(tokenizer, lm):
   sent1 = "Today I went to the store.".split()
