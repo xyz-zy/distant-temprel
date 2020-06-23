@@ -107,8 +107,8 @@ def test_load_udst_test_maj_conf_nt():
 
 
 def test_load_matres_train(mask_context=False):
-    exs, data = matres_train_examples(tokenizer, mask_context=mask_context)
-    return exs, data
+    exs, data, feats = matres_train_examples(tokenizer, mask_context=mask_context)
+    return exs, data, feats
 
 
 def test_load_matres_dev():

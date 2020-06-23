@@ -17,3 +17,24 @@ To train and evaluate on MATRES:
 
 `python eval.py --lm roberta --data matres_dev matres_test --model_dir /PATH/TO/MODEL_CHKPTS/`
 
+
+To train and evaluate on UDS-T:
+
+`python train.py --lm roberta --data udst --output_dir /PATH/TO/MODEL_CHKPTS/ --epoch 5 --batch 32`
+
+`python eval.py --lm roberta --data udst_dev_maj_conf_nt udst_test_maj_conf_nt --model_dir /PATH/TO/MODEL_CHKPTS/`
+
+To train and evaluate on timex train/test split from [Goyal and Durrett, 2019](https://arxiv.org/abs/1906.08287):
+
+`python train.py --lm roberta --data distant --output_dir /PATH/TO/MODEL_CHKPTS/ --epoch 5 --batch 32`
+
+`python eval.py --lm roberta --data distant_test --model_dir /PATH/TO/MODEL_CHKPTS/`
+
+To train and evaluate on additional timex data, sampled more evenly from sources in the English Gigaword Fifth Edition, specify a dataset from `timex/data/*pkl`, e.g.:
+
+`python train.py --lm roberta --data timex/data/d1k.pkl --output_dir /PATH/TO/MODEL_CHKPTS/ --epoch 5 --batch 32`
+
+For multiple data sources, simply specify as a space-separated list, e.g.:
+
+`python train.py --lm roberta --data matres timex/data/d1k.pkl --output_dir /PATH/TO/MODEL_CHKPTS/ --epoch 5 --batch 32`
+

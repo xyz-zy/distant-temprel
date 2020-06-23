@@ -12,12 +12,6 @@ from tqdm import tqdm, trange
 import math
 import random
 
-from multiprocessing import Pool
-
-#sys.path.append('/scratch/cluster/j0717lin/temporal')
-#from my_library.utils.johnson import simple_cycles
-#from my_library.utils.event_graph_ILP import EventGraphILPSolver
-
 
 def check_short_cut(start, end, reverse_events_edges, eiids):
     assert start in reverse_events_edges[end]
@@ -62,36 +56,6 @@ def get_equivalence_group(equal_egdes):
     return groups
 
 
-def remove_cycles(graph):
-    # remove cycles from the shortest one
-    def get_edges_in_cycle(cycle):
-        edges = []
-        for i in range(len(cycle)):
-            if i == len(cycle) - 1:
-                edges.append((cycle[i], cycle[0]))
-            else:
-                edges.append((cycle[i], cycle[i+1]))
-        return edges
-    cycles = sorted(simple_cycles(graph), key=lambda x: len(x))
-    cycles_edges = [get_edges_in_cycle(cycle) for cycle in cycles]
-    is_cycles = [True]*len(cycles)
-    eiid2cids = defaultdict(list)
-    for cid, cycle in enumerate(cycles):
-        if is_cycles[cid]:
-            # remove the edges in this cycle from the graph
-            for e_i, eiid in enumerate(cycle[:-1]):
-                graph[eiid].remove(cycle[e_i+1])
-            graph[cycle[-1]].remove(cycle[0]) # last edge in the cycle
-            # the remain cycles which have the common nodes are longer cycles
-            for remain_cid in range(cid+1, len(cycles)):
-                if is_cycles[remain_cid] and len(set(cycles_edges[remain_cid]) & set(cycles_edges[cid])) > 0:
-                    is_cycles[remain_cid] = False
-    # clean up nodes with empty neighbors
-    for n in list(graph.keys()):
-        if len(graph[n]) == 0:
-            graph.pop(n)
-
-
 def get_data_dict(raw, events, events_edges, args):
     # concate passage and tokenization
     sents_char_offset = []
@@ -114,47 +78,6 @@ def get_data_dict(raw, events, events_edges, args):
         e['tok_end'] = e['tok_span'][-1] # inclusive
     # deal with equal edges. (e1, e2) => make all edges only connect to e1
     equal_egdes = events_edges.pop('EQUAL') if 'EQUAL' in events_edges else []
-    #eq_groups = get_equivalence_group(equal_egdes)
-    if args.remove_cycles:
-        eq_end2start_dict = {}
-        for cc in eq_groups: # decide the main vertex for equivalent groups
-            m_vertex = cc[0]
-            for e in cc:
-                eq_end2start_dict[e] = m_vertex
-        for start in list(events_edges.keys()): # resolve start points
-            if start in eq_end2start_dict:
-                events_edges[eq_end2start_dict[start]] = events_edges.get(eq_end2start_dict[start], []) + events_edges.pop(start)
-        for start in list(events_edges.keys()): # resolve end points
-            ends = events_edges[start]
-            filtered_ends = set()
-            for end in ends:
-                if end in eq_end2start_dict:
-                    filtered_ends.add(eq_end2start_dict[end])
-                else:
-                    filtered_ends.add(end)
-            assert len(filtered_ends) > 0
-            events_edges[start] = list(filtered_ends)
-        # remove cycles
-        remove_cycles(events_edges)
-        # remove redundant edges
-        reverse_events_edges = defaultdict(list)
-        for start, ends in events_edges.items():
-            for end in ends:
-                reverse_events_edges[end].append(start)
-        all_eiids = [e['eiid'] for e in events]
-        for start, ends in events_edges.items():
-            filtered_ends = []
-            for end in ends:
-                if not check_short_cut(start, end, reverse_events_edges, all_eiids):
-                    filtered_ends.append(end)
-            assert len(filtered_ends) > 0, json.dumps(events_edges, indent=4) + '\n' + start
-            events_edges[start] = filtered_ends
-    '''
-    # add equal edges
-    for e1, e2 in equal_egdes:
-        events_edges[e1].append(e2)
-        events_edges[e2].append(e1)
-    '''
     data_dict = {'text': concat_passages,
                  'tokens': concat_passages_toks,
                  'sents_tok_offset': sents_tok_offset,
@@ -162,7 +85,6 @@ def get_data_dict(raw, events, events_edges, args):
                  'eiid2events': {e['eiid']: e for e in events},
                  'events_edges': events_edges,
                  'vague_edges': [],
-                 #'equivalence_groups': eq_groups
                  'equal_edges': equal_egdes
                  }
     return data_dict
@@ -275,8 +197,6 @@ def time_annotations_to_data(path, UD_paths, save_dir, args):
             docid2sentoffset[fn].append(cur_sent_num)
             cur_sent_num += len(doc['sents_text'])
     # get events from UDS-T
-    if (not args.preserve_all_anns) and args.perform_ILP:
-        event_graph_solver = EventGraphILPSolver(solver_type=args.ILP_solver, rel_score=args.rel_score, num_workers=args.num_workers)
     docid2events = {}
     docid2events_rels = {}
     for fn in UD_data:
@@ -322,31 +242,6 @@ def time_annotations_to_data(path, UD_paths, save_dir, args):
                 rel = get_relation({'beg': e_beg1, 'end': e_end1}, {'beg': e_beg2, 'end': e_end2})
                 #docid2events_rels[src1][doc_id][(eiid1, eiid2)].append(rel)
                 docid2events_rels[src1][doc_id][(eiid1, eiid2)].append((rel, rel_conf))
-    # perform ILP to get the most suitable annotations for each doc
-    if (not args.preserve_all_anns) and args.perform_ILP:
-        ILP_inputs = []
-        for fn in UD_data:
-            if args.src is not None and not args.src == fn:
-                continue
-            for doc_id in range(len(docid2events[fn])):
-                events = docid2events[fn][doc_id]
-                events_rels = docid2events_rels[fn][doc_id]
-                if args.remove_ties:
-                    events_rels = {k: v for k, v in events_rels.items() if not check_tie_annotation(v)}
-                ILP_inputs.append((fn, doc_id, events, events_rels, event_graph_solver))
-        # to make long doc evenly distributed in chunks
-        print("num over {:d}: {:d}".format(150, len([ele for ele in ILP_inputs if len(ele[2]) >= 150])))
-        ILP_inputs = [ele for ele in ILP_inputs if len(ele[2]) < 150]
-        chunksize = math.ceil(len(ILP_inputs)/args.num_workers/4)
-        ILP_inputs = sorted(ILP_inputs, key=lambda x: len(x[2]))
-        ILP_inputs = [(ILP_inputs[i], i % (args.num_workers*4)) for i in range(len(ILP_inputs))]
-        ILP_inputs = [ele[0] for ele in sorted(ILP_inputs, key=lambda x: x[1])]
-        with Pool(args.num_workers) as p:
-            for res in tqdm(p.imap_unordered(get_consistent_annotations, ILP_inputs, chunksize=chunksize), total=len(ILP_inputs)):
-                fn = res[0]
-                doc_id = res[1]
-                events_rels = res[2]
-                docid2events_rels[fn][doc_id] = events_rels
     # get the event graph for each doc
     data = {}
     for fn in UD_data:
@@ -407,14 +302,8 @@ if __name__ == '__main__':
     parser.add_argument('--input', help='UDS-T annotation path')
     parser.add_argument('--UD_inputs', help='UD inputs')
     parser.add_argument('--output_dir', help='UDS-T data output path')
-    parser.add_argument('--remove_cycles', action='store_true', default=False,
-                        help='filter cycles starting from the shortest one')
-    parser.add_argument('--perform_ILP', action='store_true', default=False,
-                        help='perform ILP to choose the most suitable annotation for each event pair. Only used when `preserve_all_anns` is false')
     parser.add_argument('--action', default='pickle', help='action to do', choices=['json', 'pickle'])
     parser.add_argument('--src', default=None, help='src', choices=['en-ud-train', 'en-ud-dev', 'en-ud-test'])
-    parser.add_argument('--ILP_solver', help='ILP solver type', choices=['CP', 'CBC', 'Gubori'],
-                        default='CP')
     parser.add_argument('--num_workers', type=int, help='number of workers for multiprocessing', default=12)
     parser.add_argument('--preserve_all_anns', action='store_true', default=False,
                         help='whether to preserve all the annotations')

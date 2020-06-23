@@ -143,8 +143,8 @@ def eval(model_dir, epoch_num, data_source):
         output_results(data_source, examples, all_results,
                        model_dir+data_source+".csv")
 
-    if "matres" in data_source:
-        get_fine_metrics(examples, all_labels, all_results)
+    #if "matres" in data_source:
+    #    get_fine_metrics(examples, all_labels, all_results)
 
     print(args, file=logfile)
     metrics = get_metrics(all_labels, all_results, logfile)
