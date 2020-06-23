@@ -230,8 +230,8 @@ def eval_on_data(model_base_dir, data_source):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', nargs='+',
-                        choices=['beforeafter', 'matres_train', 'matres_dev',
-                                 'distant_train', 'distant_test',
+                        choices=['matres_train', 'matres_dev', 'matres_test',
+                                 'beforeafter', 'distant_train', 'distant_test',
                                  'udst_train', 'udst_dev', 'udst_test',
                                  'udst_dev_maj', 'udst_test_maj',
                                  'udst_dev_maj_conf_nt',

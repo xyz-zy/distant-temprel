@@ -178,9 +178,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data',
                         nargs='+',
-                        choices=['matres','udst','beforeafter',
-                                 'distant','beforeafter_yelp'],
-                        help='training data sources, can specifiy multiple.')
+                        #choices=['matres','udst','beforeafter',
+                        #         'distant','beforeafter_yelp'],
+                        help='training data sources, can specifiy multiple. choose from {matres, udst, beforeafter, distant} or specify path to .pkl containing serialized data')
     parser.add_argument('--output_dir',
                         help='directory path to save model checkpoints')
     parser.add_argument('--model_dir',

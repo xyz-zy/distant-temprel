@@ -15,8 +15,6 @@ from transformers import RobertaTokenizer
 from udst import parse_udst
 from timebank.examples import MatresLoader
 
-sys.path.insert(1, 'Temporal-event-ordering/event_model')
-
 
 def get_train_data(data, tokenizer, lm, num_examples=None, mask=True, distant_source=None):
     if data == "beforeafter":
