@@ -38,3 +38,9 @@ For multiple data sources, simply specify as a space-separated list, e.g.:
 
 `python train.py --lm roberta --data matres timex/data/d1k.pkl --output_dir /PATH/TO/MODEL_CHKPTS/ --epoch 5 --batch 32`
 
+## Fine-Tuned Models
+
+You can download RoBERTa models that have been fine tuned:
+
+ * on MATRES: [link](https://drive.google.com/file/d/17tLQWCJ3Zwz_YKwkYp_bCzO9yj48uv0r/view?usp=sharing)
+ * on 1k MATRES examples and 10k DistantTimex examples: [link](https://drive.google.com/file/d/1YvXgCrrfwvfk0PB9CzPEtzzHglt2TO_z/view?usp=sharing)
